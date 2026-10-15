@@ -1,5 +1,5 @@
 <?php
-require_once 'db.php';
+require_once __DIR__ . '/db.php';
 class event extends db{
   public function get_total_locations(){
       $sql = "SELECT * FROM locations WHERE active = 1";
@@ -11,7 +11,7 @@ class event extends db{
 
   }
   public function get_pending_reports_total(){
-    $sql = "SELECT * FROM events WHERE status = 'pending' ";
+    $sql = "SELECT * FROM events WHERE type = 'report' AND status = 'pending' ";
       $smtm = $this->connect()->query($sql);
       
       $count = $smtm->fetchAll(PDO::FETCH_ASSOC);
@@ -19,7 +19,7 @@ class event extends db{
       return $total;
   }
   public function get_high_risk(){
-    $sql = "SELECT * FROM events WHERE risk_level = 'high' ";
+    $sql = "SELECT * FROM events WHERE type = 'reading' AND archived = 0 AND risk_level = 'high' ";
       $smtm = $this->connect()->query($sql);
       
       $count = $smtm->fetchAll(PDO::FETCH_ASSOC);
@@ -27,7 +27,7 @@ class event extends db{
       return $total;
   }
   public function get_med_risk(){
-    $sql = "SELECT * FROM events WHERE risk_level = 'medium' ";
+    $sql = "SELECT * FROM events WHERE type = 'reading' AND archived = 0 AND risk_level = 'medium' ";
       $smtm = $this->connect()->query($sql);
       
       $count = $smtm->fetchAll(PDO::FETCH_ASSOC);
@@ -35,14 +35,14 @@ class event extends db{
       return $total;
   }
   public function get_readings(){
-    $sql = "SELECT * FROM events INNER JOIN locations ON events.location_id = locations.id";
+    $sql = "SELECT events.*, locations.name FROM events INNER JOIN locations ON events.location_id = locations.id WHERE events.type = 'reading' AND events.archived = 0";
     $readings = $this->connect()->query($sql)->fetchAll(PDO::FETCH_ASSOC);
     return $readings;
 
   }
   public function get_dialog($id){
     $stmt = $this->connect()->prepare(
-    "SELECT * FROM events INNER JOIN locations ON events.location_id = locations.id WHERE locations.id = ?");
+    "SELECT events.*, locations.name FROM events INNER JOIN locations ON events.location_id = locations.id WHERE events.type = 'reading' AND events.archived = 0 AND events.id = ?");
 
     $stmt->execute([$id]);
 
@@ -61,7 +61,7 @@ class event extends db{
 }
 
 function get_pending_reports(){
-  $sql = "SELECT locations.name AS location_name, users.full_name AS reporter, users.phone AS contact, events.status AS report_status, users.created_at AS report_date FROM events INNER JOIN locations INNER JOIN users ON events.location_id = locations.id AND events.user_id = users.id WHERE status = 'pending' ";
+  $sql = "SELECT locations.name AS location_name, users.full_name AS reporter, users.phone AS contact, events.status AS report_status, events.created_at AS report_date FROM events INNER JOIN locations INNER JOIN users ON events.location_id = locations.id AND events.user_id = users.id WHERE events.type = 'report' AND events.status = 'pending' ";
   $reports = $this->connect()->query($sql)->fetchAll(PDO::FETCH_ASSOC);
   return $reports;
 }

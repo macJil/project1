@@ -1,27 +1,20 @@
 <?php
-session_start();
-if(isset($_POST['log_out'])){
-  session_destroy();
-  echo $_SESSION['LOG_OUT'];
+require_once __DIR__ . '/../../includes/session.php';
+if (empty($_SESSION['USER_ID'])) {
+    header('Location: ' . BASE_URL . '/index.php');
+    exit;
 }
-if(empty($_SESSION["USERNAME"])){
-  session_destroy();
-  header("Location: /project1/index.php");
+if (($_SESSION['ROLE'] ?? '') !== 'admin') {
+    http_response_code(403);
+    exit('Access denied.');
 }
-
+require_once __DIR__ . '/../../includes/header.php';
 ?>
-<?php include_once __DIR__ . "/../../includes/header.php"; ?>
-
-  <div>
-    <form action="" method="post">
-      <h1>This is Admin</h1>
-      <h1><?php echo $_SESSION['USERNAME'];?></h1>
-      <h1><?php echo $_SESSION['FULLNAME'];?></h1>
-      <h1><?php echo $_SESSION['PASSWORD'];?></h1>
-      <h1><?php echo $_SESSION['ROLE'];?></h1>
-      
-     
-    </form>
-    
+<main class="container py-4">
+    <h1>This is Admin</h1>
+    <p>Welcome, <?= htmlspecialchars($_SESSION['FULLNAME'], ENT_QUOTES, 'UTF-8') ?>.</p>
+    <p>Username: <?= htmlspecialchars($_SESSION['USERNAME'], ENT_QUOTES, 'UTF-8') ?></p>
+    <a class="btn btn-primary" href="<?= BASE_URL ?>/dashboard.php">View dashboard</a>
+</main>
 </body>
 </html>

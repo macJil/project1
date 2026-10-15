@@ -1,19 +1,20 @@
 <?php
-
+require_once __DIR__ . '/../../includes/session.php';
+if (empty($_SESSION['USER_ID'])) {
+    header('Location: ' . BASE_URL . '/index.php');
+    exit;
+}
+if (($_SESSION['ROLE'] ?? '') !== 'user') {
+    http_response_code(403);
+    exit('Access denied.');
+}
+require_once __DIR__ . '/../../includes/header.php';
 ?>
-<?php include_once __DIR__ . "/../../includes/header.php"; ?>
-
-  <div>
-    <form action="" method="post">
-      <h1>This is user</h1>
-      <h1><?php echo $_SESSION['USERNAME'];?></h1>
-      <h1><?php echo $_SESSION['FULLNAME'];?></h1>
-      <h1><?php echo $_SESSION['PASSWORD'];?></h1>
-      <h1><?php echo $_SESSION['ROLE'];?></h1>
-      
-     
-    </form>
-    
-  </div>
+<main class="container py-4">
+    <h1>This is User</h1>
+    <p>Welcome, <?= htmlspecialchars($_SESSION['FULLNAME'], ENT_QUOTES, 'UTF-8') ?>.</p>
+    <p>Username: <?= htmlspecialchars($_SESSION['USERNAME'], ENT_QUOTES, 'UTF-8') ?></p>
+    <a class="btn btn-primary" href="<?= BASE_URL ?>/dashboard.php">View dashboard</a>
+</main>
 </body>
 </html>

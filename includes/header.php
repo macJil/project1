@@ -1,16 +1,11 @@
 <?php
-session_start();
-if(isset($_POST['log_out'])){
-  session_destroy();
-  echo $_SESSION['LOG_OUT'];
-}
-if(empty($_SESSION["USERNAME"])){
-  session_destroy();
-  header("Location: /project1/index.php");
-}
+require_once __DIR__ . '/session.php';
 
-define('BASE_URL', '/project1');
-$home = $_SESSION["ROLE"] === 'admin' ? BASE_URL . '/users/admin/admin.php' : BASE_URL . '/users/user/user.php'  
+if (empty($_SESSION['USER_ID']) || !in_array($_SESSION['ROLE'] ?? '', ['admin', 'user'], true)) {
+    header('Location: ' . BASE_URL . '/index.php');
+    exit;
+}
+$home = BASE_URL . ($_SESSION['ROLE'] === 'admin' ? '/users/admin/admin.php' : '/users/user/user.php');
 ?>
 <!doctype html>
 <html lang="en">
@@ -63,7 +58,7 @@ $home = $_SESSION["ROLE"] === 'admin' ? BASE_URL . '/users/admin/admin.php' : BA
       <div class="offcanvas-body">
         <ul class="navbar-nav flex-column">
           <li class="nav-item">
-            <a class="nav-link active text-dark" href="<?=BASE_URL?>/dashboard.php">Dashboard</a>
+            <a class="nav-link active text-dark" href="<?= $home ?>">Dashboard</a>
           </li>
           <?php if($_SESSION["ROLE"] === 'user'):?>
             <li class="nav-item">
@@ -82,19 +77,12 @@ $home = $_SESSION["ROLE"] === 'admin' ? BASE_URL . '/users/admin/admin.php' : BA
           </li>
           <li class="nav-item mt-3">
             
-            <button  class="btn btn-outline-danger w-100" command="show-modal" commandfor="log_out">Log Out</button>
+            <form action="<?= BASE_URL ?>/logout.php" method="post">
+              <button type="submit" class="btn btn-outline-danger w-100">Log Out</button>
+            </form>
           </li>
         </ul>
       </div>
     </div>
   </div>
 </nav>
-
-<dialog id="log_out">
-  <h2>Are you sure you want to log out?</h2>
-  <form action="" method="post">
-      <button name="log_out">Yes</button>
-  </form>
-  
-  <button command="close" commandfor="dialog">No</button>
-</dialog>

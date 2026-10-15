@@ -1,29 +1,43 @@
-<?php include_once __DIR__ . "/includes/header.php"; 
-require_once __DIR__ . "/class/events.php";
-require_once __DIR__ . "/config.php";
+<?php
+require_once __DIR__ . '/includes/session.php';
+require_once __DIR__ . '/class/events.php';
+if (empty($_SESSION['USER_ID']) || !in_array($_SESSION['ROLE'] ?? '', ['admin', 'user'], true)) {
+    header('Location: ' . BASE_URL . '/index.php');
+    exit;
+}
+
 $event = new event();
-
-$readings = $event->get_readings();
-$reports = $event->get_pending_reports();
-
+$readings = [];
+$reports = [];
 $dialog_readings = [];
-
-if (!empty($_GET['dialog_id'])) {
+$totalLocations = $totalReports = $highReadings = $mediumReadings = 0;
+$error = '';
+try {
+    $readings = $event->get_readings();
+    $totalLocations = $event->get_total_locations();
+    $highReadings = $event->get_high_risk();
+    $mediumReadings = $event->get_med_risk();
+    if ($_SESSION['ROLE'] === 'admin') {
+        $reports = $event->get_pending_reports();
+        $totalReports = $event->get_pending_reports_total();
+    }
     $id = filter_input(INPUT_GET, 'dialog_id', FILTER_VALIDATE_INT);
-    
-    
-    if ($id !== false && $id !== null) {
-        $result = $event->get_dialog($id);
-
-        // Supports get_dialog() returning either one row or many rows.
-        if (is_array($result) && isset($result['id'])) {
-            $dialog_readings = [$result];
-        } elseif (is_array($result)) {
-            $dialog_readings = $result;
+    if ($id && $id > 0) {
+        $reading = $event->get_dialog($id);
+        if ($reading) {
+            $dialog_readings = [$reading];
         }
     }
+} catch (PDOException $exception) {
+    error_log('SmartSlope dashboard: ' . $exception->getMessage());
+    http_response_code(503);
+    $error = 'Dashboard data is unavailable. Check MySQL and the database configuration.';
 }
+require_once __DIR__ . '/includes/header.php';
 ?>
+<?php if ($error !== ''): ?>
+    <p class="alert alert-danger" role="alert"><?= htmlspecialchars($error, ENT_QUOTES, 'UTF-8') ?></p>
+<?php endif; ?>
 
 <div class="container text-center" style="margin-top: 5px; padding:5px">
   <div class="row">
@@ -51,20 +65,20 @@ if (!empty($_GET['dialog_id'])) {
     <div class="card-body"  >
       <div class="row" style="text-align: center;">
           <div class="col ">
-            <h2><?php echo $event->get_total_locations()?></h2>
+            <h2><?php echo $totalLocations?></h2>
             <span >Monitored Locations</span>
           </div>
           <div class="col">
-            <h2><?php echo $event->get_pending_reports_total()?></h2>
+            <h2><?php echo $totalReports?></h2>
             <span>Pending Reports</span>
           </div>
           <div class="col">
-            <h2><?php echo $event->get_high_risk()?></h2>
-            <span>Current high readings</span>
+            <h2><?php echo $highReadings?></h2>
+            <span>Saved high readings</span>
           </div>
           <div class="col">
-            <h2><?php echo $event->get_med_risk()?></h2>
-            <span>Current medium readings</span>
+            <h2><?php echo $mediumReadings?></h2>
+            <span>Saved medium readings</span>
           </div>
         </div>
       </div>
@@ -170,10 +184,10 @@ if (!empty($_GET['dialog_id'])) {
             <td>
               <input type="checkbox">
             </td>
-            <td><?php echo $reading['name']?></td>
+            <td><?= htmlspecialchars((string) $reading['name'], ENT_QUOTES, 'UTF-8') ?></td>
             <?php echo $event->risk_color($reading['risk_level'])?>
             <td><?php echo $reading['rainfall_1h']. "/" . $reading['rainfall_24h']. "/" .  $reading['rainfall_72h']?></td>
-            <td><?php echo $reading['observed_at']?></td>
+            <td><?= htmlspecialchars((string) $reading['observed_at'], ENT_QUOTES, 'UTF-8') ?></td>
             <td>
               
               <a class="btn btn-outline-success" command="show-modal" commandfor="view_all" href="?dialog_id=<?= (int) $reading['id'] ?>">View All</a>
@@ -233,7 +247,8 @@ if (!empty($_GET['dialog_id'])) {
 
   </div>
 
-  <div class="card" <?php echo check_role() ?>>
+  <?php if ($_SESSION['ROLE'] === 'admin'): ?>
+  <div class="card">
       <div class="card-header">
         <h5>Pending Reports</h5>
         <div class="d-flex align-items-end" style="justify-content: end;">
@@ -254,11 +269,11 @@ if (!empty($_GET['dialog_id'])) {
             </tr>
             <?php foreach($reports as $report):?>
             <tr>
-              <td><?php echo $report['location_name']?></td>
-              <td><?php echo $report['reporter']?></td>
-              <td><?php echo $report['contact']?></td>
-              <td><?php echo $report['report_status']?></td>
-              <td><?php echo $report['report_date']?></td>
+              <td><?= htmlspecialchars((string) $report['location_name'], ENT_QUOTES, 'UTF-8') ?></td>
+              <td><?= htmlspecialchars((string) $report['reporter'], ENT_QUOTES, 'UTF-8') ?></td>
+              <td><?= htmlspecialchars((string) $report['contact'], ENT_QUOTES, 'UTF-8') ?></td>
+              <td><?= htmlspecialchars((string) $report['report_status'], ENT_QUOTES, 'UTF-8') ?></td>
+              <td><?= htmlspecialchars((string) $report['report_date'], ENT_QUOTES, 'UTF-8') ?></td>
               <td>
                 <a href=""><?php echo check_report_status($report['report_status'])?></a>
               </td>
@@ -268,6 +283,7 @@ if (!empty($_GET['dialog_id'])) {
       </div>
   </div>
 
+  <?php endif; ?>
 </div>
 
 </body>
