@@ -1,0 +1,1 @@
+document.getElementById('view_all').showModal();
