@@ -18,12 +18,17 @@ class event extends db {
         return (int) $this->connect()->query("SELECT COUNT(*) FROM events WHERE type = 'reading' AND archived = 0 AND risk_level = 'medium'")->fetchColumn();
     }
 
-    public function get_readings() {
+    public function get_readings($location_id = null) {
         $sql = "SELECT events.*, locations.name FROM events
             INNER JOIN locations ON events.location_id = locations.id
-            WHERE events.type = 'reading' AND events.archived = 0
-            ORDER BY events.observed_at DESC, events.id DESC";
-        return $this->connect()->query($sql)->fetchAll();
+            WHERE events.type = 'reading' AND events.archived = 0";
+        if ($location_id !== null) {
+            $sql .= ' AND events.location_id = ?';
+        }
+        $sql .= ' ORDER BY events.observed_at DESC, events.id DESC';
+        $stmt = $this->connect()->prepare($sql);
+        $stmt->execute($location_id === null ? [] : [$location_id]);
+        return $stmt->fetchAll();
     }
 
     public function get_dialog($id) {

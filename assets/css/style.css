@@ -89,3 +89,9 @@ a:hover { color: #143e2c; }
     .auth-shell { margin-top: 1.5rem; }
 }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { transition: none !important; scroll-behavior: auto !important; } }
+
+/* Phase 3: local map and location form */
+#location-map { height: 440px; width: 100%; background: #e8eee5; z-index: 0; }
+.leaflet-container { font-family: inherit; }
+.location-actions { display: flex; flex-wrap: wrap; gap: .5rem; }
+@media (max-width: 575px) { #location-map { height: 340px; } }

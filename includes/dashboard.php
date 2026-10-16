@@ -1,6 +1,7 @@
 <?php
 require_once __DIR__ . '/session.php';
 require_once __DIR__ . '/../class/events.php';
+require_once __DIR__ . '/../class/locations.php';
 if (empty($_SESSION['USER_ID']) || !in_array($_SESSION['ROLE'] ?? '', ['admin', 'user'], true)) {
     header('Location: ' . BASE_URL . '/index.php');
     exit;
@@ -9,12 +10,25 @@ $admin = $_SESSION['ROLE'] === 'admin';
 $pageTitle = $admin ? 'Admin dashboard' : 'Your dashboard';
 $activePage = 'dashboard';
 $event = new event();
+$location = new location();
+$showMap = true;
+$locations = [];
+$selectedLocation = null;
 $readings = $reports = [];
 $detail = null;
 $totalLocations = $totalReports = $highReadings = $mediumReadings = null;
 $error = '';
 try {
-    $readings = array_slice($event->get_readings(), 0, 5);
+    $locations = $location->get_locations();
+    $locationId = filter_input(INPUT_GET, 'location_id', FILTER_VALIDATE_INT);
+    if ($locationId) {
+        $selectedLocation = $location->get_location($locationId);
+        if (!$selectedLocation || !$selectedLocation['active']) {
+            $selectedLocation = null;
+            $error = 'That location is unavailable. Showing all recent readings.';
+        }
+    }
+    $readings = array_slice($event->get_readings($selectedLocation['id'] ?? null), 0, 5);
     $totalLocations = $event->get_total_locations();
     $highReadings = $event->get_high_risk();
     $mediumReadings = $event->get_med_risk();
@@ -52,19 +66,18 @@ require_once __DIR__ . '/header.php';
     <div class="row g-4 mb-4">
         <div class="col-lg-8"><section class="card h-100" aria-labelledby="map-title">
             <div class="card-header d-flex flex-wrap align-items-center justify-content-between gap-2"><h2 id="map-title">Barangay Irisan map</h2><span class="role-tag">Irisan study area</span></div>
-            <div class="map-placeholder flex-grow-1"><div><span class="map-symbol" aria-hidden="true">⌖</span><h3>A closer look at your community</h3><p>Interactive location selection is not available yet. You can browse saved readings below.</p></div></div>
-            <div class="map-caption">Study coverage: Barangay Irisan, Baguio City</div>
+            <?php require __DIR__ . '/location-map.php'; ?>
         </section></div>
         <div class="col-lg-4"><section class="card h-100" aria-labelledby="assessment-title">
             <div class="card-header"><h2 id="assessment-title">Landslide awareness</h2></div>
-            <div class="card-body"><div class="assessment-empty"><h3>Current assessment unavailable</h3><p>No location is selected. Saved readings are historical context.</p></div>
+            <div class="card-body"><div class="assessment-empty"><h3>Current assessment unavailable</h3><p>Live assessment will be added in Phase 4. Map selection currently shows saved records only.</p></div>
                 <span class="eyebrow">Rainfall totals</span><div class="rainfall-grid"><div><span>1 hour</span><strong>—</strong></div><div><span>24 hours</span><strong>—</strong></div><div><span>72 hours</span><strong>—</strong></div></div>
                 <p class="prototype-note mb-0">Academic prototype, not an official warning. No automatic evacuation instructions.</p>
             </div>
         </section></div>
     </div>
     <section class="card mb-4" aria-labelledby="readings-title">
-        <div class="card-header d-flex align-items-center justify-content-between gap-2"><h2 id="readings-title">Recent weather readings</h2><a class="btn btn-sm btn-outline-primary" href="<?= BASE_URL ?>/readings.php">View all</a></div>
+        <div class="card-header d-flex align-items-center justify-content-between gap-2"><h2 id="readings-title">Recent weather readings<?= $selectedLocation ? ' · ' . htmlspecialchars($selectedLocation['name'], ENT_QUOTES, 'UTF-8') : '' ?></h2><a class="btn btn-sm btn-outline-primary" href="<?= BASE_URL ?>/readings.php">View all</a></div>
         <?php require __DIR__ . '/readings-table.php'; ?>
     </section>
     <?php if ($admin): ?>

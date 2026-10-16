@@ -17,6 +17,11 @@ $activePage = $activePage ?? '';
     <link rel="stylesheet" href="<?= BASE_URL ?>/assets/css/bootstrap.min.css">
     <link rel="stylesheet" href="<?= BASE_URL ?>/assets/css/style.css">
     <script src="<?= BASE_URL ?>/assets/js/bootstrap.bundle.min.js" defer></script>
+    <?php if (!empty($showMap)): ?>
+    <link rel="stylesheet" href="<?= BASE_URL ?>/assets/vendor/leaflet/leaflet.css">
+    <script src="<?= BASE_URL ?>/assets/vendor/leaflet/leaflet.js" defer></script>
+    <script src="<?= BASE_URL ?>/assets/js/location-map.js" defer></script>
+    <?php endif; ?>
 </head>
 <body>
 <nav class="navbar navbar-expand-lg site-nav py-3" aria-label="Main navigation">

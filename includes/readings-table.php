@@ -16,7 +16,7 @@ if (!isset($readings)) {
                 <td><span class="risk-badge risk-<?= htmlspecialchars($reading['risk_level'] ?? 'unavailable', ENT_QUOTES, 'UTF-8') ?>"><?= htmlspecialchars($reading['risk_level'] ?? 'unavailable', ENT_QUOTES, 'UTF-8') ?></span></td>
                 <td><?= htmlspecialchars(($reading['rainfall_1h'] ?? '—') . ' / ' . ($reading['rainfall_24h'] ?? '—') . ' / ' . ($reading['rainfall_72h'] ?? '—'), ENT_QUOTES, 'UTF-8') ?></td>
                 <td><?= htmlspecialchars($reading['observed_at'] ?? 'Unavailable', ENT_QUOTES, 'UTF-8') ?></td>
-                <td><a class="btn btn-sm btn-outline-primary" href="?dialog_id=<?= (int) $reading['id'] ?>#reading-details" aria-label="Details for reading <?= (int) $reading['id'] ?>">Details</a></td>
+                <td><a class="btn btn-sm btn-outline-primary" href="?<?= isset($selectedLocation['id']) ? 'location_id=' . (int) $selectedLocation['id'] . '&amp;' : '' ?>dialog_id=<?= (int) $reading['id'] ?>#reading-details" aria-label="Details for reading <?= (int) $reading['id'] ?>">Details</a></td>
             </tr>
         <?php endforeach; ?>
         <?php if (!$readings): ?><tr><td colspan="5" class="empty-cell">No saved weather readings available.</td></tr><?php endif; ?>
@@ -25,7 +25,7 @@ if (!isset($readings)) {
 </div>
 <?php if ($detail): ?>
 <section class="card reading-details m-3" id="reading-details" tabindex="-1" aria-labelledby="detail-title">
-    <div class="card-header d-flex justify-content-between align-items-center"><h2 id="detail-title">Reading #<?= (int) $detail['id'] ?></h2><a class="btn btn-sm btn-outline-secondary" href="?">Close details</a></div>
+    <div class="card-header d-flex justify-content-between align-items-center"><h2 id="detail-title">Reading #<?= (int) $detail['id'] ?></h2><a class="btn btn-sm btn-outline-secondary" href="?<?= isset($selectedLocation['id']) ? 'location_id=' . (int) $selectedLocation['id'] : '' ?>">Close details</a></div>
     <div class="card-body"><dl class="detail-list">
         <div><dt>Location</dt><dd><?= htmlspecialchars($detail['name'], ENT_QUOTES, 'UTF-8') ?></dd></div>
         <div><dt>Observed (UTC)</dt><dd><?= htmlspecialchars($detail['observed_at'] ?? 'Unavailable', ENT_QUOTES, 'UTF-8') ?></dd></div>
