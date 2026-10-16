@@ -1,4 +1,4 @@
-# SmartSlope — Phase 3
+# SmartSlope — Phase 4
 
 Separate administrator and resident dashboards with a shared green-and-brown
 Bootstrap theme. Login, registration, logout, and role checks from Phase 1 remain
@@ -17,8 +17,8 @@ in place. No database schema or local configuration changes are required.
 - Shared PHP sections in `includes/` keep dashboard and reading-table HTML in one
   place. Navigation supports Bootstrap's mobile offcanvas menu.
 - Login and registration stay together in one column with floating labels.
-- Phase 3 adds offline map selection and admin location management. Live
-  weather/risk, report submission/review, reading changes, and CSV remain later phases.
+- Phase 3 adds offline map selection and admin location management. Phase 4 adds weather fetching and rainfall assessment.
+  Report submission/review, reading changes, and CSV remain later phases.
 - Displayed dates are explicitly labeled UTC; high/medium totals count saved
   observations and must not be interpreted as current location risk.
 
@@ -30,10 +30,10 @@ his or her own report count and no administrator report table.
 ## Phase 3: locations and offline map
 
 Both dashboards now show the bundled Irisan boundary and active location markers.
-Click a marker, then **View saved readings here** to filter recent records to that
-location. Click empty space within Irisan to inspect coordinates; this does not
-create a location or weather reading yet. Automatic weather fetch/save comes in
-Phase 4. Saved names, puroks, and landmarks work offline; reverse address lookup
+Click a marker or a point inside Irisan to fetch and save weather, then view that
+location’s recent readings. **View saved readings here** opens history without
+requesting new weather and is useful offline. A new coordinate pair gets a simple
+coordinate-based name after weather succeeds; admins can rename it later. Saved names, puroks, and landmarks work offline; reverse address lookup
 is not available offline.
 
 Admins can add/edit locations in **Management**, using map clicks or coordinate
@@ -78,7 +78,7 @@ redistribution terms before public hosting (the source tile README also notes th
 
 Offline here means **without internet while PHP and MySQL still run** through
 Herd or XAMPP. Opening a PHP file directly from Finder will not run the website.
-The map, saved records, and location management work offline; future fresh weather
+The map, saved records, and location management work offline; fresh weather
 and external address services require internet.
 
 ### Check Phase 3 locally
@@ -92,6 +92,65 @@ and external address services require internet.
 7. As resident, verify direct GET and POST to Management are denied.
 8. Confirm deactivation preserves linked events and omits the point from the
    resident's map. Check layout and controls on a narrow/mobile viewport.
+
+## Phase 4: weather and assessment
+
+- The dashboard calls `api/readings.php` with POST when a marker/point is clicked
+  or **Refresh weather** is pressed. It reloads the saved location after success.
+  A normal page load, reading-detail link, or GET API request never saves data.
+- Both roles may fetch weather. Only admins can edit location names or activation.
+  Existing inactive coordinate pairs cannot be reactivated through the weather API.
+- `includes/weather.php` makes a server-side HTTPS request to Open-Meteo with
+  cURL (5-second connection timeout, 12-second total timeout, TLS verification on).
+  PHP cURL must be enabled in your active Herd/XAMPP PHP installation. No API key,
+  `.env`, new URL configuration, or database import is required.
+- Provider timestamps are UTC Unix seconds. We request 73 past hourly steps and
+  one current hourly step. The last completed-hour timestamp anchors the 1/24/72h
+  precipitation sums; future steps never enter these totals. No missing values
+  are replaced with zero. Invalid times/units/values or incomplete history reject
+  the response before saving a reading.
+- Each successful refresh inserts a reading (even when the provider observation
+  time is unchanged). Existing records are retained. Repeated coordinates reuse
+  their existing location. New unnamed points use an Irisan coordinate label;
+  no online address lookup is included.
+- `class/RiskAnalyzer.php` keeps the original `prototype-1` thresholds:
+
+| Category | 1h mm | 24h mm | 72h mm |
+| --- | --- | --- | --- |
+| High | 50 | 100 | 150 |
+| Medium | 25 | 50 | 100 |
+| Normal | 10 | 25 | 50 |
+
+The highest category with **any** threshold reached applies; below all thresholds
+is low. These are academic screening rules, not validated Irisan landslide
+thresholds. A low/normal category does not establish safety. Open-Meteo provides
+weather-model precipitation, not readings from physical sensors at the map pin.
+See the on-site Methodology page and https://open-meteo.com/en/docs.
+
+A current assessment needs consistent totals, a supported rule version, valid
+observation/window timestamps, and a rainfall window less than 3 hours old.
+Outdated or incomplete/legacy data stays visible as history without a current
+category badge. The badge also expires while the page remains open. The database
+`stale` column is not used as a clock. Historical count cards keep their labels.
+
+The existing event columns store totals, temperature, humidity, wind, weather
+code, observation/window times, rule version, and the original provider JSON.
+Forecast/soil-moisture fields stay untouched and are not used by this phase.
+
+### Weather checks on your computer
+
+1. Log in as each role and click the pilot marker while connected to the internet.
+2. Confirm a new reading, summary, calculated category, and UTC times appear.
+3. Press Refresh and confirm a new saved reading without a duplicate location.
+4. Click a new point within Irisan; confirm its location and weather are saved.
+5. Disconnect Wi-Fi and refresh weather: a readable error appears, old data stays
+   in the database, and **View saved readings here** still works locally.
+6. Confirm an old reading is marked outdated, never as a current warning.
+7. Check `api/readings.php?location_id=YOUR_ID` while logged in: GET returns saved
+   JSON. A logged-out request returns 401 JSON. POST is required to fetch/save.
+
+On a browser timeout the server may still finish saving: reload history before
+retrying. Report review, reading edits/deletion, and CSV remain subsequent phases.
 
 ## Database
 

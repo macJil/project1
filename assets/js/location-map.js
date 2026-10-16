@@ -51,7 +51,8 @@ if (mapElement) {
                 }).addTo(map);
                 status.textContent = 'Offline map · Brown outline: Irisan study boundary.';
 
-                function selectPoint(lat, lng, place = null) {
+                function selectPoint(lat, lng, place = null, refresh = false) {
+                    if (mapElement.dataset.busy === '1') return;
                     if (!insideIrisan(lat, lng, points)) {
                         selection.textContent = 'Select a point inside the brown Irisan boundary. Your previous selection is unchanged.';
                         return;
@@ -66,7 +67,10 @@ if (mapElement) {
                     } else {
                         openLocation.hidden = !place;
                         if (place) openLocation.href = '?location_id=' + place.id;
-                        else selection.textContent += '. This point is not saved yet; an administrator can add it in Management.';
+                        else selection.textContent += '. Weather will be saved for these coordinates; an administrator can rename the location later.';
+                        if (refresh) document.dispatchEvent(new CustomEvent('location-selected', {
+                            detail: place ? {location_id: place.id} : {lat: lat.toFixed(6), lng: lng.toFixed(6)}
+                        }));
                     }
                 }
 
@@ -77,14 +81,14 @@ if (mapElement) {
                     const label = document.createElement('span');
                     label.textContent = place.name;
                     L.circleMarker([lat, lng], {bubblingMouseEvents: false, radius: 6, color: '#205b43', fillOpacity: 0.8})
-                        .addTo(map).bindTooltip(label).on('click', () => selectPoint(lat, lng, place));
+                        .addTo(map).bindTooltip(label).on('click', () => selectPoint(lat, lng, place, true));
                     if (!editing && place.id == mapElement.dataset.selected) selectPoint(lat, lng, place);
                 });
                 if (editing) {
                     const lat = document.getElementById('lat').value, lng = document.getElementById('lng').value;
                     if (lat !== '' && lng !== '') selectPoint(Number(lat), Number(lng));
                 }
-                map.on('click', event => selectPoint(event.latlng.lat, event.latlng.lng));
+                map.on('click', event => selectPoint(event.latlng.lat, event.latlng.lng, null, true));
             })
             .catch(() => {
                 status.textContent = 'The local map could not load. Check assets/map/irisan.geojson and reload the page.';

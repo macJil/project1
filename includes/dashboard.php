@@ -2,6 +2,8 @@
 require_once __DIR__ . '/session.php';
 require_once __DIR__ . '/../class/events.php';
 require_once __DIR__ . '/../class/locations.php';
+require_once __DIR__ . '/../class/weather_readings.php';
+require_once __DIR__ . '/../class/RiskAnalyzer.php';
 if (empty($_SESSION['USER_ID']) || !in_array($_SESSION['ROLE'] ?? '', ['admin', 'user'], true)) {
     header('Location: ' . BASE_URL . '/index.php');
     exit;
@@ -14,6 +16,7 @@ $location = new location();
 $showMap = true;
 $locations = [];
 $selectedLocation = null;
+$latest = null;
 $readings = $reports = [];
 $detail = null;
 $totalLocations = $totalReports = $highReadings = $mediumReadings = null;
@@ -29,6 +32,7 @@ try {
         }
     }
     $readings = array_slice($event->get_readings($selectedLocation['id'] ?? null), 0, 5);
+    if ($selectedLocation) $latest = (new weather_readings())->latest($selectedLocation['id']);
     $totalLocations = $event->get_total_locations();
     $highReadings = $event->get_high_risk();
     $mediumReadings = $event->get_med_risk();
@@ -49,6 +53,7 @@ try {
     $readings = $reports = [];
     $totalLocations = $totalReports = $highReadings = $mediumReadings = null;
 }
+$assessment = (new RiskAnalyzer())->assess($latest);
 require_once __DIR__ . '/header.php';
 ?>
 <main class="page-shell">
@@ -68,13 +73,7 @@ require_once __DIR__ . '/header.php';
             <div class="card-header d-flex flex-wrap align-items-center justify-content-between gap-2"><h2 id="map-title">Barangay Irisan map</h2><span class="role-tag">Irisan study area</span></div>
             <?php require __DIR__ . '/location-map.php'; ?>
         </section></div>
-        <div class="col-lg-4"><section class="card h-100" aria-labelledby="assessment-title">
-            <div class="card-header"><h2 id="assessment-title">Landslide awareness</h2></div>
-            <div class="card-body"><div class="assessment-empty"><h3>Current assessment unavailable</h3><p>Live assessment will be added in Phase 4. Map selection currently shows saved records only.</p></div>
-                <span class="eyebrow">Rainfall totals</span><div class="rainfall-grid"><div><span>1 hour</span><strong>—</strong></div><div><span>24 hours</span><strong>—</strong></div><div><span>72 hours</span><strong>—</strong></div></div>
-                <p class="prototype-note mb-0">Academic prototype, not an official warning. No automatic evacuation instructions.</p>
-            </div>
-        </section></div>
+        <div class="col-lg-4"><?php require __DIR__ . '/assessment.php'; ?></div>
     </div>
     <section class="card mb-4" aria-labelledby="readings-title">
         <div class="card-header d-flex align-items-center justify-content-between gap-2"><h2 id="readings-title">Recent weather readings<?= $selectedLocation ? ' · ' . htmlspecialchars($selectedLocation['name'], ENT_QUOTES, 'UTF-8') : '' ?></h2><a class="btn btn-sm btn-outline-primary" href="<?= BASE_URL ?>/readings.php">View all</a></div>
@@ -94,4 +93,5 @@ require_once __DIR__ . '/header.php';
         <section class="card action-card"><div class="card-body d-flex flex-wrap align-items-center justify-content-between gap-3"><div><h3>Notice something in your area?</h3><p class="mb-0 small">Ground reports help provide context alongside weather readings.</p></div><a class="btn btn-secondary" href="<?= BASE_URL ?>/users/user/submit_report.php">Ground reports</a></div></section>
     <?php endif; ?>
 </main>
+<script src="<?= BASE_URL ?>/assets/js/weather.js" defer></script>
 <?php require_once __DIR__ . '/footer.php'; ?>

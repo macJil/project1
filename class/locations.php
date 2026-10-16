@@ -26,6 +26,20 @@ class location extends db {
         }
     }
 
+    public function find_point($lat, $lng) {
+        $stmt = $this->connect()->prepare('SELECT * FROM locations WHERE lat = ? AND lng = ?');
+        $stmt->execute([$lat, $lng]);
+        return $stmt->fetch();
+    }
+
+    public function save_point($lat, $lng) {
+        // Reuse the unique coordinate pair if another request saved it first.
+        $stmt = $this->connect()->prepare('INSERT INTO locations (name, lat, lng)
+            VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE id = LAST_INSERT_ID(id)');
+        $stmt->execute(['Irisan location ' . $lat . ', ' . $lng, $lat, $lng]);
+        return $this->find_point($lat, $lng);
+    }
+
     public function set_active($id, $active) {
         // Deactivate instead of deleting: the schema would also delete linked events.
         $stmt = $this->connect()->prepare('UPDATE locations SET active = ? WHERE id = ?');
