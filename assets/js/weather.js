@@ -7,7 +7,7 @@ if (weatherButton) {
     let selected = mapBox.dataset.selected !== '0' ? {location_id: mapBox.dataset.selected} : null;
 
     async function refreshWeather() {
-        if (!selected || mapBox.dataset.busy === '1') return;
+        if (!selected || (mapBox.dataset.busy && mapBox.dataset.busy !== '0')) return;
         mapBox.dataset.busy = '1';
         weatherButton.disabled = true;
         message.textContent = 'Fetching weather and saving the reading…';

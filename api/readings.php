@@ -54,6 +54,7 @@ try {
         if (!$place || !$place['active'] || (float) $place['lat'] !== $lat || (float) $place['lng'] !== $lng) {
             throw new InvalidArgumentException('This location changed. Reload the map and try again.');
         }
+        $location->remember_address($place['id'], $lat, $lng);
         $savedId = $weather->save($place['id'], $reading);
     }
     $latest = $weather->latest($place['id']);

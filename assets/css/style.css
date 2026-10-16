@@ -101,3 +101,5 @@ a:hover { color: #143e2c; }
 .nav-pills .nav-link { color: #205b43; }
 .nav-pills .nav-link.active { background-color: #205b43; color: #fff; }
 .modal-content { border-color: #d9d6ca; }
+
+.report-map { height: 300px; width: 100%; background: #e8eee5; }

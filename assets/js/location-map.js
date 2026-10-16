@@ -9,6 +9,7 @@ if (mapElement) {
     const editing = mapElement.dataset.mode === 'edit';
     const reporting = mapElement.dataset.mode === 'report';
     let chosenMarker;
+    let addressRequest = 0;
 
     // Same polygon-edge check as PHP; the server checks again before saving.
     function insideIrisan(lat, lng, points) {
@@ -52,7 +53,7 @@ if (mapElement) {
                 }).addTo(map);
                 status.textContent = 'Offline map · Brown outline: Irisan study boundary.';
 
-                function selectPoint(lat, lng, place = null, refresh = false) {
+                async function selectPoint(lat, lng, place = null, refresh = false) {
                     if (mapElement.dataset.busy === '1') return;
                     if (!insideIrisan(lat, lng, points)) {
                         selection.textContent = 'Select a point inside the brown Irisan boundary. Your previous selection is unchanged.';
@@ -60,7 +61,8 @@ if (mapElement) {
                     }
                     if (chosenMarker) map.removeLayer(chosenMarker);
                     chosenMarker = L.circleMarker([lat, lng], {bubblingMouseEvents: false, radius: 9, color: '#705139', fillColor: '#e8c47a', fillOpacity: 1}).addTo(map);
-                    selection.textContent = (place ? [place.name, place.purok, place.landmark].filter(Boolean).join(' · ') : 'Selected coordinates')
+                    const request = ++addressRequest;
+                    selection.textContent = (place ? (place.address_label || place.name) : 'Barangay Irisan, Baguio City, Philippines')
                         + ' · ' + lat.toFixed(6) + ', ' + lng.toFixed(6);
                     if (editing || reporting) {
                         document.getElementById('lat').value = lat.toFixed(6);
@@ -70,10 +72,48 @@ if (mapElement) {
                         openLocation.hidden = !place;
                         if (place) openLocation.href = '?location_id=' + place.id;
                         else selection.textContent += '. Weather will be saved for these coordinates; an administrator can rename the location later.';
-                        if (refresh) document.dispatchEvent(new CustomEvent('location-selected', {
-                            detail: place ? {location_id: place.id} : {lat: lat.toFixed(6), lng: lng.toFixed(6)}
-                        }));
+
                     }
+                    if (!refresh) return;
+                    if (!editing && !reporting) {
+                        mapElement.dataset.busy = 'address';
+                        document.getElementById('refresh-weather').disabled = true;
+                        document.getElementById('saved-assessment').hidden = true;
+                    }
+                    const addressStatus = document.getElementById('address-status');
+                    if (addressStatus) addressStatus.textContent = 'Looking up the mapped address…';
+                    const nameInput = editing ? document.getElementById('name') : null;
+                    const landmarkInput = editing ? document.getElementById('landmark') : null;
+                    if (editing) {
+                        nameInput.value = place ? place.name : 'Irisan location ' + lat.toFixed(6) + ', ' + lng.toFixed(6);
+                        landmarkInput.value = place ? (place.landmark || '') : '';
+                        document.getElementById('purok').value = place ? (place.purok || '') : '';
+                    }
+                    const oldName = nameInput ? nameInput.value : '';
+                    const oldLandmark = landmarkInput ? landmarkInput.value : '';
+                    let address = '';
+                    try {
+                        const response = await fetch(base + '/api/address.php?' + new URLSearchParams({lat: lat.toFixed(6), lng: lng.toFixed(6)}));
+                        const data = await response.json();
+                        if (request !== addressRequest) return; // Ignore a slower result for an older click.
+                        if (response.ok && data.address) {
+                            address = data.address;
+                            selection.textContent = address + ' · ' + lat.toFixed(6) + ', ' + lng.toFixed(6);
+                            if (editing && nameInput.value === oldName && landmarkInput.value === oldLandmark) {
+                                nameInput.value = data.name;
+                                landmarkInput.value = address;
+                            }
+                        }
+                    } catch (error) { /* Offline: retain the selected coordinates and saved label. */ }
+                    if (request !== addressRequest) return;
+                    if (addressStatus) addressStatus.textContent = address
+                        ? 'Approximate mapped address · OpenStreetMap / Photon. Check house and street details.'
+                        : 'Detailed address unavailable. Saved labels and coordinates remain usable.';
+                    if (!editing && !reporting) mapElement.dataset.busy = '';
+                    if (!editing && !reporting) document.dispatchEvent(new CustomEvent('location-selected', {
+                        detail: place ? {location_id: place.id} : {lat: lat.toFixed(6), lng: lng.toFixed(6)}
+                    }));
+
                 }
 
                 locations.forEach(place => {
@@ -81,7 +121,7 @@ if (mapElement) {
                     const lat = Number(place.lat), lng = Number(place.lng);
                     if (!Number.isFinite(lat) || !Number.isFinite(lng) || !insideIrisan(lat, lng, points)) return;
                     const label = document.createElement('span');
-                    label.textContent = place.name;
+                    label.textContent = place.address_label || place.name;
                     L.circleMarker([lat, lng], {bubblingMouseEvents: false, radius: 6, color: '#205b43', fillOpacity: 0.8})
                         .addTo(map).bindTooltip(label).on('click', () => selectPoint(lat, lng, place, true));
                     if (!editing && place.id == mapElement.dataset.selected) selectPoint(lat, lng, place);
@@ -93,8 +133,9 @@ if (mapElement) {
                 if (reporting) {
                     document.getElementById('report-location').addEventListener('change', event => {
                         const place = locations.find(item => String(item.id) === event.target.value);
-                        if (place) selectPoint(Number(place.lat), Number(place.lng), place);
+                        if (place) selectPoint(Number(place.lat), Number(place.lng), place, true);
                         else {
+                            addressRequest++;
                             document.getElementById('lat').value = '';
                             document.getElementById('lng').value = '';
                             if (chosenMarker) map.removeLayer(chosenMarker);

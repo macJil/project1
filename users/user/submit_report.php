@@ -36,9 +36,9 @@ try {
             ? DateTimeImmutable::createFromFormat('!Y-m-d\TH:i', $form['occurred_at'], new DateTimeZone('Asia/Manila')) : false;
         if ($form['message'] === '' || strlen($form['message']) > 5000 || !isset($types[$form['report_type']])) {
             $error = 'Choose a report type and describe your observation (up to 5000 bytes).';
-        } elseif (strlen($form['house_landmark']) > 255
-            || ($form['contact_phone'] !== '' && !preg_match('/^[0-9+() .-]{7,20}$/', $form['contact_phone']))
-            || ($form['contact_email'] !== '' && (strlen($form['contact_email']) > 254 || !filter_var($form['contact_email'], FILTER_VALIDATE_EMAIL)))) {
+        } elseif ($form['contact_phone'] === '' || $form['contact_email'] === '' || strlen($form['house_landmark']) > 255
+            || (!preg_match('/^[0-9+() .-]{7,20}$/', $form['contact_phone']))
+            || ((strlen($form['contact_email']) > 254 || !filter_var($form['contact_email'], FILTER_VALIDATE_EMAIL)))) {
             $error = 'Check the contact details and landmark length.';
         } elseif (!$occurred || $occurred->format('Y-m-d\TH:i') !== $form['occurred_at'] || $occurred->getTimestamp() > time() + 300) {
             $error = 'Enter a valid observation time in Manila time, not a future time.';
@@ -57,6 +57,7 @@ try {
                 $error = 'Select a location inside Irisan.';
             }
             if (!$error) {
+                $location->remember_address($selectedLocation['id'], $selectedLocation['lat'], $selectedLocation['lng']);
                 $saved = $reportModel->submit($_SESSION['USER_ID'], $selectedLocation['id'], $form,
                     $occurred->setTimezone(new DateTimeZone('UTC'))->format('Y-m-d H:i:s'));
                 if ($saved) {
@@ -103,13 +104,13 @@ require_once __DIR__ . '/../../includes/header.php';
                 <input type="hidden" id="lat" name="lat" value="<?= htmlspecialchars($form['lat'], ENT_QUOTES, 'UTF-8') ?>">
                 <input type="hidden" id="lng" name="lng" value="<?= htmlspecialchars($form['lng'], ENT_QUOTES, 'UTF-8') ?>">
                 <div class="form-floating mb-3"><select id="report-location" name="location_id" class="form-select"><option value="">Choose on the map or select a saved location</option>
-                    <?php foreach ($locations as $place): ?><option value="<?= (int) $place['id'] ?>" <?= (string) $form['location_id'] === (string) $place['id'] ? 'selected' : '' ?>><?= htmlspecialchars($place['name'], ENT_QUOTES, 'UTF-8') ?></option><?php endforeach; ?>
+                    <?php foreach ($locations as $place): ?><option value="<?= (int) $place['id'] ?>" <?= (string) $form['location_id'] === (string) $place['id'] ? 'selected' : '' ?>><?= htmlspecialchars($place['address_label'], ENT_QUOTES, 'UTF-8') ?></option><?php endforeach; ?>
                 </select><label for="report-location">Saved location</label></div>
                 <div class="form-floating mb-3"><select id="report-type" name="report_type" class="form-select" required><?php foreach ($types as $value => $label): ?><option value="<?= $value ?>" <?= $form['report_type'] === $value ? 'selected' : '' ?>><?= $label ?></option><?php endforeach; ?></select><label for="report-type">Observation type</label></div>
                 <div class="form-floating mb-3"><textarea class="form-control" id="message" name="message" placeholder="Observation" style="height:130px" maxlength="5000" required><?= htmlspecialchars($form['message'], ENT_QUOTES, 'UTF-8') ?></textarea><label for="message">What did you observe?</label></div>
                 <div class="form-floating mb-3"><input class="form-control" type="datetime-local" id="occurred-at" name="occurred_at" value="<?= htmlspecialchars($form['occurred_at'], ENT_QUOTES, 'UTF-8') ?>" required><label for="occurred-at">Observed at (Manila time)</label></div>
-                <?php foreach (['house_landmark' => ['Nearby house / landmark (optional)', 255, 'text'], 'contact_phone' => ['Contact number (optional)', 20, 'tel'], 'contact_email' => ['Email (optional)', 254, 'email']] as $field => [$label, $length, $type]): ?>
-                <div class="form-floating mb-3"><input class="form-control" id="<?= $field ?>" name="<?= $field ?>" type="<?= $type ?>" maxlength="<?= $length ?>" placeholder="<?= $label ?>" value="<?= htmlspecialchars($form[$field], ENT_QUOTES, 'UTF-8') ?>"><label for="<?= $field ?>"><?= $label ?></label></div>
+                <?php foreach (['house_landmark' => ['Nearby house / landmark (optional)', 255, 'text'], 'contact_phone' => ['Contact number', 20, 'tel'], 'contact_email' => ['Email', 254, 'email']] as $field => [$label, $length, $type]): ?>
+                <div class="form-floating mb-3"><input class="form-control" id="<?= $field ?>" name="<?= $field ?>" type="<?= $type ?>" maxlength="<?= $length ?>" <?= $field !== 'house_landmark' ? 'required' : '' ?> placeholder="<?= $label ?>" value="<?= htmlspecialchars($form[$field], ENT_QUOTES, 'UTF-8') ?>"><label for="<?= $field ?>"><?= $label ?></label></div>
                 <?php endforeach; ?>
                 <p class="small text-muted">Contact details are visible to administrators. This page is not monitored as an emergency service.</p>
                 <button type="submit" class="btn btn-primary">Submit report</button>

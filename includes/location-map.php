@@ -12,6 +12,7 @@ if (!isset($locations, $showMap) || empty($_SESSION['USER_ID'])) {
     <a id="open-location" class="btn btn-sm btn-primary" hidden>View saved readings here</a>
     <a class="btn btn-sm btn-outline-secondary" href="?">Show all recent readings</a>
     <?php endif; ?>
+    <p id="address-status" class="small text-muted mb-0">Mapped addresses are approximate. Address data © OpenStreetMap contributors via Photon; detailed lookup needs internet.</p>
     <noscript>Enable JavaScript to select a point on the map. Saved readings remain available below.</noscript>
 </div>
 <script id="map-locations" type="application/json"><?= json_encode($locations, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_INVALID_UTF8_SUBSTITUTE) ?></script>

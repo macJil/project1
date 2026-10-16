@@ -1,5 +1,6 @@
 <?php
 require_once __DIR__ . '/db.php';
+require_once __DIR__ . '/../includes/address.php';
 
 class location extends db {
     public function get_locations($active_only = true) {
@@ -7,13 +8,17 @@ class location extends db {
         if ($active_only) {
             $sql .= ' WHERE active = 1';
         }
-        return $this->connect()->query($sql . ' ORDER BY name, id')->fetchAll();
+        $rows = $this->connect()->query($sql . ' ORDER BY name, id')->fetchAll();
+        foreach ($rows as &$row) $row['address_label'] = location_label($row);
+        return $rows;
     }
 
     public function get_location($id) {
         $stmt = $this->connect()->prepare('SELECT * FROM locations WHERE id = ?');
         $stmt->execute([$id]);
-        return $stmt->fetch();
+        $row = $stmt->fetch();
+        if ($row) $row['address_label'] = location_label($row);
+        return $row;
     }
 
     public function save_location($id, $name, $purok, $landmark, $lat, $lng) {
@@ -29,15 +34,29 @@ class location extends db {
     public function find_point($lat, $lng) {
         $stmt = $this->connect()->prepare('SELECT * FROM locations WHERE lat = ? AND lng = ?');
         $stmt->execute([$lat, $lng]);
-        return $stmt->fetch();
+        $row = $stmt->fetch();
+        if ($row) $row['address_label'] = location_label($row);
+        return $row;
     }
 
     public function save_point($lat, $lng) {
         // Reuse the unique coordinate pair if another request saved it first.
         $stmt = $this->connect()->prepare('INSERT INTO locations (name, lat, lng)
             VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE id = LAST_INSERT_ID(id)');
-        $stmt->execute(['Irisan location ' . $lat . ', ' . $lng, $lat, $lng]);
+        $cached = $_SESSION['map_addresses'][address_key($lat, $lng)] ?? null;
+        $stmt->execute([$cached['name'] ?? ('Irisan location ' . $lat . ', ' . $lng), $lat, $lng]);
+        $place = $this->find_point($lat, $lng);
+        $this->remember_address($place['id'], $lat, $lng);
         return $this->find_point($lat, $lng);
+    }
+
+    public function remember_address($id, $lat, $lng) {
+        $cached = $_SESSION['map_addresses'][address_key($lat, $lng)] ?? null;
+        if (!$cached) return;
+        // Do not replace a manually entered landmark or a moved location's address.
+        $stmt = $this->connect()->prepare("UPDATE locations SET landmark = ?
+            WHERE id = ? AND lat = ? AND lng = ? AND (landmark IS NULL OR landmark = '')");
+        $stmt->execute([$cached['address'], $id, $lat, $lng]);
     }
 
     public function set_active($id, $active) {

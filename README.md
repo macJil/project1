@@ -158,8 +158,7 @@ retrying. CSV remains Phase 6.
 
 Open **Submit report**, choose a saved location or click within Irisan, and enter
 an observation type, description, and observation time. The time input is in
-**Asia/Manila** and is stored/displayed as UTC. Phone, email, and nearby landmark
-are optional; contact fields initially use the resident's account details.
+**Asia/Manila** and is stored/displayed as UTC. Phone and email are required; nearby landmark is optional; contact fields initially use the resident's account details.
 
 A successful submission creates a `report` event with the signed-in resident's
 ID and `pending` status. Submitted user IDs, roles, or status fields cannot
@@ -189,7 +188,7 @@ access these pages or actions. No report action can modify a reading event.
 Admins see **Edit** and **Delete** beside saved readings on the dashboard and
 readings page. Edit opens `users/admin/edit_reading.php`, with rainfall totals,
 temperature, humidity, and wind. Rainfall totals must be nonnegative and consistent
-(1h ≤ 24h ≤ 72h); the prototype category is recalculated. Other weather values
+(1h ≤ 24h ≤ 72h); the rainfall category is calculated separately from the administrator-selected risk status. Other weather values
 may be left blank when unavailable.
 
 Editing preserves the location, original observation timestamp, and original
@@ -219,6 +218,57 @@ credentials, table, or existing-record migration is needed.
    corresponding location remains. Cancel the browser confirmation once as well.
 7. As resident, directly visit the admin review/edit URLs and try POST actions:
    each must be denied. Check both desktop and mobile layouts and the View dialog.
+
+## p4 refinements: addresses, risk status, and report maps
+
+Map clicks on both dashboards, the location editor, and the report form now look
+up the nearest mapped address using Photon (OpenStreetMap data). Coordinates stay
+visible. House numbers, street names, puroks/localities, and city information are
+included only when available. A nearest mapped feature is an **approximate
+address**, not proof of the exact clicked house. Check/correct suggested details.
+
+The local Leaflet tiles still work offline. Only a user-triggered address lookup
+requires internet. Saved labels remain available offline, and lookup failure does
+not block weather requests or report submission. Old coordinates-only locations
+gain a saved address after lookup plus a successful weather refresh/report or an
+admin save. Lists do not perform background/bulk geocoding.
+
+`api/address.php` is authenticated and Irisan-only. It uses a short timeout and
+caches up to 100 coordinate results in the session, with at most one uncached
+request per second per session. The Photon public demo permits moderate use but
+may throttle requests and has no availability guarantee. No key is needed for
+this local academic setup. Before larger-scale deployment use an appropriate
+hosted/private provider. Only coordinates are sent; report messages and contact
+details are not. Attribution is displayed on the map.
+Provider documentation: https://github.com/komoot/photon and its `docs/api-v1.md`.
+
+No new database columns are needed: short names remain in `locations.name`,
+resolved full addresses use `locations.landmark` (up to 255 characters), and
+`purok` remains available for corrections. The address helper formats existing
+partial labels with Irisan/Baguio context. Existing manually entered landmarks
+are not silently overwritten. In Management, a map click fills the name and
+full-address fields; review them and press Save to persist your changes.
+
+Saved reading tables now say **Risk status**. Admin Edit reading includes Low,
+Normal, Medium, and High. The selected status is stored in `risk_level`; the
+calculated rainfall category is kept separately in the edit metadata and shown
+on the assessment panel. Overrides are identified as administrator-selected,
+not as automatic rainfall calculations. Observation times and freshness rules
+remain unchanged. Invalid status values are rejected server-side.
+
+Report View dialogs now contain an offline map. New reports save their point
+and address in the existing report event's `provider_payload` field, separately
+from weather-event payloads. This snapshot stays fixed if a location is later
+moved. Older reports without snapshots show their linked location and say so.
+Missing coordinates/tiles produce a message instead of breaking the dialog.
+
+Report phone and email are required both in HTML and PHP, and are still prefilled
+from the resident's account. No public contact disclosure or new roles are added.
+
+Check: click points on both dashboards, Management, and Submit report; try with
+Wi-Fi off; save and reopen readings to check their address labels; save each risk
+status; try blank contact fields; open/close/reopen report dialogs on desktop and
+mobile. No schema import, tile recopy, or credential change is needed.
 
 ## Database
 

@@ -11,6 +11,7 @@ if (($_SESSION['ROLE'] ?? '') !== 'admin') {
 }
 $pageTitle = 'Report review';
 $activePage = 'admin';
+$showMap = true;
 $statuses = ['pending', 'reviewed', 'resolved'];
 $filter = filter_input(INPUT_GET, 'status');
 if (!in_array($filter, $statuses, true)) $filter = 'all';
@@ -64,6 +65,8 @@ require_once __DIR__ . '/../../includes/header.php';
         <div class="modal-header"><h2 class="modal-title fs-5" id="report-title-<?= (int) $report['id'] ?>">Report #<?= (int) $report['id'] ?></h2><button class="btn-close" type="button" data-bs-dismiss="modal" aria-label="Close"></button></div>
         <div class="modal-body">
             <p class="fw-semibold"><?= htmlspecialchars($report['name'], ENT_QUOTES, 'UTF-8') ?></p>
+            <div class="report-map mb-2" data-lat="<?= htmlspecialchars($report['lat'] ?? '', ENT_QUOTES, 'UTF-8') ?>" data-lng="<?= htmlspecialchars($report['lng'] ?? '', ENT_QUOTES, 'UTF-8') ?>" data-base="<?= htmlspecialchars(BASE_URL, ENT_QUOTES, 'UTF-8') ?>" aria-label="Reported location map"></div>
+            <p class="report-map-status small" role="status"><?= htmlspecialchars($report['map_note'], ENT_QUOTES, 'UTF-8') ?> · <?= htmlspecialchars(($report['lat'] ?? 'Unavailable') . ', ' . ($report['lng'] ?? 'Unavailable'), ENT_QUOTES, 'UTF-8') ?></p>
             <p>Type: <?= htmlspecialchars($report['report_type'] ?? 'Not specified', ENT_QUOTES, 'UTF-8') ?></p>
             <p class="report-message"><?= nl2br(htmlspecialchars($report['message'] ?? '', ENT_QUOTES, 'UTF-8')) ?></p>
             <dl class="detail-list">
@@ -80,4 +83,5 @@ require_once __DIR__ . '/../../includes/header.php';
     </div></div></div>
     <?php endforeach; ?>
 </main>
+<script src="<?= BASE_URL ?>/assets/js/report-maps.js" defer></script>
 <?php require_once __DIR__ . '/../../includes/footer.php'; ?>

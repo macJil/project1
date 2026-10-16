@@ -24,7 +24,7 @@ class RiskAnalyzer {
     }
 
     public function assess($reading, $now = null) {
-        $result = ['status' => 'unavailable', 'category' => null, 'expires_at' => null];
+        $result = ['status' => 'unavailable', 'category' => null, 'expires_at' => null, 'calculated_category' => null, 'adjusted' => false];
         if (!$reading) return $result;
         $result['status'] = 'incomplete';
         $category = $this->analyze($reading['rainfall_1h'], $reading['rainfall_24h'], $reading['rainfall_72h']);
@@ -37,7 +37,10 @@ class RiskAnalyzer {
             || $observed->getTimestamp() > $now + 300
             || $end->getTimestamp() !== intdiv($observed->getTimestamp(), 3600) * 3600
             || ($reading['rule_version'] ?? '') !== self::VERSION) return $result;
-        $result['category'] = $category;
+        $result['calculated_category'] = $category;
+        $result['adjusted'] = ($reading['source'] ?? '') === 'manual';
+        $stored = $reading['risk_level'] ?? '';
+        $result['category'] = $result['adjusted'] && in_array($stored, ['low', 'normal', 'medium', 'high'], true) ? $stored : $category;
         $result['expires_at'] = $end->getTimestamp() + self::MAX_AGE;
         $result['status'] = $now >= $result['expires_at'] ? 'outdated' : 'current';
         return $result;

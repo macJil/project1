@@ -1,5 +1,6 @@
 <?php
 require_once __DIR__ . '/db.php';
+require_once __DIR__ . '/../includes/address.php';
 
 class event extends db {
     public function get_total_locations() {
@@ -19,7 +20,7 @@ class event extends db {
     }
 
     public function get_readings($location_id = null) {
-        $sql = "SELECT events.*, locations.name FROM events
+        $sql = "SELECT events.*, locations.name, locations.purok, locations.landmark FROM events
             INNER JOIN locations ON events.location_id = locations.id
             WHERE events.type = 'reading' AND events.archived = 0";
         if ($location_id !== null) {
@@ -28,15 +29,19 @@ class event extends db {
         $sql .= ' ORDER BY events.observed_at DESC, events.id DESC';
         $stmt = $this->connect()->prepare($sql);
         $stmt->execute($location_id === null ? [] : [$location_id]);
-        return $stmt->fetchAll();
+        $rows = $stmt->fetchAll();
+        foreach ($rows as &$row) $row['name'] = location_label($row);
+        return $rows;
     }
 
     public function get_dialog($id) {
-        $stmt = $this->connect()->prepare("SELECT events.*, locations.name FROM events
+        $stmt = $this->connect()->prepare("SELECT events.*, locations.name, locations.purok, locations.landmark FROM events
             INNER JOIN locations ON events.location_id = locations.id
             WHERE events.type = 'reading' AND events.archived = 0 AND events.id = ?");
         $stmt->execute([$id]);
-        return $stmt->fetch();
+        $row = $stmt->fetch();
+        if ($row) $row['name'] = location_label($row);
+        return $row;
     }
 
     public function get_user_report_count($user_id) {
@@ -46,13 +51,15 @@ class event extends db {
     }
 
     public function get_pending_reports() {
-        $sql = "SELECT locations.name AS location_name, users.full_name AS reporter,
+        $sql = "SELECT locations.name, locations.purok, locations.landmark, users.full_name AS reporter,
             COALESCE(events.contact_phone, users.phone) AS contact,
             events.status AS report_status, events.created_at AS report_date
             FROM events INNER JOIN locations ON events.location_id = locations.id
             LEFT JOIN users ON events.user_id = users.id
             WHERE events.type = 'report' AND events.status = 'pending'
             ORDER BY events.created_at DESC, events.id DESC";
-        return $this->connect()->query($sql)->fetchAll();
+        $rows = $this->connect()->query($sql)->fetchAll();
+        foreach ($rows as &$row) $row['location_name'] = location_label($row);
+        return $rows;
     }
 }

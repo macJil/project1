@@ -33,7 +33,7 @@ try {
             }
             $lat = filter_var($form['lat'], FILTER_VALIDATE_FLOAT);
             $lng = filter_var($form['lng'], FILTER_VALIDATE_FLOAT);
-            if ($form['name'] === '' || strlen($form['name']) > 150 || strlen($form['purok']) > 100 || strlen($form['landmark']) > 255) {
+            if ($form['name'] === '' || $form['name'] !== address_text($form['name'], 150) || $form['purok'] !== address_text($form['purok'], 100) || $form['landmark'] !== address_text($form['landmark'], 255)) {
                 $error = 'Enter a location name and keep each field within its length limit.';
             } elseif ($lat === false || $lng === false || !inside_irisan(round($lat, 6), round($lng, 6))) {
                 $error = 'Choose valid coordinates inside the Irisan boundary.';
@@ -83,7 +83,7 @@ require_once __DIR__ . '/../../includes/header.php';
             <form method="post" action="<?= BASE_URL ?>/users/admin/admin_panel.php">
                 <input type="hidden" name="action" value="save">
                 <input type="hidden" name="id" value="<?= (int) $form['id'] ?>">
-                <?php foreach (['name' => 'Location name', 'purok' => 'Purok (optional)', 'landmark' => 'Street / landmark (optional)'] as $field => $label): ?>
+                <?php foreach (['name' => 'Location name', 'purok' => 'Purok (optional)', 'landmark' => 'Full address / landmark'] as $field => $label): ?>
                 <div class="form-floating mb-3"><input class="form-control" id="<?= $field ?>" name="<?= $field ?>" placeholder="<?= $label ?>" maxlength="<?= $field === 'name' ? 150 : ($field === 'purok' ? 100 : 255) ?>" value="<?= htmlspecialchars($form[$field] ?? '', ENT_QUOTES, 'UTF-8') ?>" <?= $field === 'name' ? 'required' : '' ?>><label for="<?= $field ?>"><?= $label ?></label></div>
                 <?php endforeach; ?>
                 <div class="row g-2">
@@ -91,7 +91,7 @@ require_once __DIR__ . '/../../includes/header.php';
                 <div class="col-sm-6"><div class="form-floating mb-3"><input class="form-control" type="number" step="0.000001" id="<?= $field ?>" name="<?= $field ?>" placeholder="<?= $label ?>" required value="<?= htmlspecialchars($form[$field] ?? '', ENT_QUOTES, 'UTF-8') ?>"><label for="<?= $field ?>"><?= $label ?></label></div></div>
                 <?php endforeach; ?>
                 </div>
-                <p class="small text-muted">Names and landmarks are entered by the administrator. Offline map clicks do not look up street or house addresses. New locations keep susceptibility as unknown.</p>
+                <p class="small text-muted">Click the map to fill the mapped address when available. Check or correct the suggested name and full address before saving. New locations keep susceptibility as unknown.</p>
                 <div class="location-actions"><button class="btn btn-primary" type="submit">Save location</button><a class="btn btn-outline-secondary" href="<?= BASE_URL ?>/users/admin/admin_panel.php">Clear / cancel</a></div>
             </form>
         </div></section></div>
@@ -99,7 +99,7 @@ require_once __DIR__ . '/../../includes/header.php';
     <section class="card"><div class="card-header"><h2>All locations</h2></div><div class="table-responsive"><table class="table align-middle">
         <thead><tr><th>Name</th><th>Purok / landmark</th><th>Coordinates</th><th>Status</th><th>Actions</th></tr></thead><tbody>
         <?php foreach ($locations as $place): ?><tr>
-            <td><?= htmlspecialchars($place['name'], ENT_QUOTES, 'UTF-8') ?></td>
+            <td><?= htmlspecialchars($place['address_label'], ENT_QUOTES, 'UTF-8') ?></td>
             <td><?= htmlspecialchars(implode(' · ', array_filter([$place['purok'], $place['landmark']])), ENT_QUOTES, 'UTF-8') ?></td>
             <td><?= htmlspecialchars(($place['lat'] ?? '—') . ', ' . ($place['lng'] ?? '—'), ENT_QUOTES, 'UTF-8') ?></td>
             <td><?= $place['active'] ? 'Active' : 'Inactive' ?></td>

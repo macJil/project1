@@ -33,7 +33,8 @@ class weather_readings extends db {
             WHERE id = ? AND type = 'reading' AND archived = 0");
         $stmt->execute([$values['rainfall_1h'], $values['rainfall_24h'], $values['rainfall_72h'],
             $values['temperature'], $values['humidity'], $values['wind_speed'], $risk, $window_end,
-            RiskAnalyzer::VERSION, json_encode(['edited_by' => $admin_id, 'edited_at_utc' => gmdate('Y-m-d H:i:s')]), $id]);
+            RiskAnalyzer::VERSION, json_encode(['edited_by' => $admin_id, 'edited_at_utc' => gmdate('Y-m-d H:i:s'), 'selected_risk' => $risk,
+                'calculated_risk' => (new RiskAnalyzer())->analyze($values['rainfall_1h'], $values['rainfall_24h'], $values['rainfall_72h'])]), $id]);
     }
 
     public function delete($id) {

@@ -76,7 +76,7 @@ require_once __DIR__ . '/header.php';
         <div class="col-lg-4"><?php require __DIR__ . '/assessment.php'; ?></div>
     </div>
     <section class="card mb-4" aria-labelledby="readings-title">
-        <div class="card-header d-flex align-items-center justify-content-between gap-2"><h2 id="readings-title">Recent weather readings<?= $selectedLocation ? ' · ' . htmlspecialchars($selectedLocation['name'], ENT_QUOTES, 'UTF-8') : '' ?></h2><a class="btn btn-sm btn-outline-primary" href="<?= BASE_URL ?>/readings.php">View all</a></div>
+        <div class="card-header d-flex align-items-center justify-content-between gap-2"><h2 id="readings-title">Recent weather readings<?= $selectedLocation ? ' · ' . htmlspecialchars($selectedLocation['address_label'], ENT_QUOTES, 'UTF-8') : '' ?></h2><a class="btn btn-sm btn-outline-primary" href="<?= BASE_URL ?>/readings.php">View all</a></div>
         <?php require __DIR__ . '/readings-table.php'; ?>
     </section>
     <?php if ($admin): ?>

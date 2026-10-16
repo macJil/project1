@@ -8,7 +8,7 @@ if (!isset($readings)) {
 <div class="table-responsive">
     <table class="table align-middle">
         <caption class="visually-hidden">Saved weather readings; categories are historical results, not a current warning.</caption>
-        <thead><tr><th scope="col">Location</th><th scope="col">Saved category</th><th scope="col">Rainfall mm<br>1h / 24h / 72h</th><th scope="col">Observed (UTC)</th><th scope="col">Details</th></tr></thead>
+        <thead><tr><th scope="col">Location</th><th scope="col">Risk status</th><th scope="col">Rainfall mm<br>1h / 24h / 72h</th><th scope="col">Observed (UTC)</th><th scope="col">Details</th></tr></thead>
         <tbody>
         <?php foreach ($readings as $reading): ?>
             <tr>
