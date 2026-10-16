@@ -1,0 +1,1117 @@
+diff --git a/README.md b/README.md
+index 6314724..b05c5d2 100644
+--- a/README.md
++++ b/README.md
+@@ -1,9 +1,32 @@
+-# SmartSlope — Phase 1
+-
+-Foundation and authentication for the `project1` layout. This phase implements
+-registration, username/password login, logout, role checks, and a shared PDO
+-connection. Map, weather, risk assessment, CSV, and management workflows are
+-later phases; their existing buttons and placeholders are not complete features.
++# SmartSlope — Phase 2
++
++Separate administrator and resident dashboards with a shared green-and-brown
++Bootstrap theme. Login, registration, logout, and role checks from Phase 1 remain
++in place. No database schema or local configuration changes are required.
++
++## Phase 2 screens
++
++- Admins open `users/admin/admin.php`: active-location totals, saved reading
++  counts, recent weather readings, and a private pending-report list.
++- Residents open `users/user/user.php`: community readings and their own report
++  count. Other residents' report/contact details are not sent to the browser.
++- `dashboard.php` redirects to the appropriate dashboard and preserves valid
++  `dialog_id` reading-detail bookmarks.
++- `readings.php` lists all non-archived saved readings, newest first, with working
++  detail links. Dashboards show the five most recent readings.
++- Shared PHP sections in `includes/` keep dashboard and reading-table HTML in one
++  place. Navigation supports Bootstrap's mobile offcanvas menu.
++- Login and registration stay together in one column with floating labels.
++- Map selection, live risk assessment, management actions, report submission,
++  and CSV are still later phases. The screens clearly identify unavailable
++  components instead of showing buttons that pretend to perform those actions.
++- Displayed dates are explicitly labeled UTC; high/medium totals count saved
++  observations and must not be interpreted as current location risk.
++
++Phase 2 checks: repeat Phase 1 authentication checks below, open both dashboards,
++open a reading detail and close it, follow View all, and try the mobile navigation.
++Verify empty tables and multiple saved readings. Confirm a resident sees only
++his or her own report count and no administrator report table.
+ 
+ ## Database
+ 
+diff --git a/assets/css/style.css b/assets/css/style.css
+index 7da587a..7877d2a 100755
+--- a/assets/css/style.css
++++ b/assets/css/style.css
+@@ -1,19 +1,91 @@
+-
+-.dialog {
+-    border: 0;
+-    border-radius: 12px;
+-    padding: 0;
+-    width: min(90vw, 500px);
+-    max-height: 85vh;
++/* Shared Bootstrap theme: forest green, warm brown, and quiet surfaces. */
++:root {
++    --slope-green: #205b43;
++    --slope-brown: #705139;
++    --slope-bg: #f5f4ee;
++    --slope-border: #d9e1d8;
++    --slope-muted: #59675e;
+ }
+-
+-.dialog[open] {
+-    position: fixed;
+-    inset: 0;
+-    margin: auto;
++body { background: var(--slope-bg); color: #263d30; font-family: system-ui, sans-serif; }
++a { color: var(--slope-green); }
++a:hover { color: #143e2c; }
++.site-nav { background: #fff; border-bottom: 1px solid var(--slope-border); }
++.navbar-brand { color: var(--slope-green); font-weight: 750; letter-spacing: -.04em; }
++.brand-mark { display: inline-grid; place-items: center; width: 36px; height: 36px; background: var(--slope-green); border-radius: 10px; color: #fff; font-size: .8rem; letter-spacing: 0; }
++.site-nav .nav-link { color: #52645a; border-radius: 6px; padding: .55rem .8rem; }
++.site-nav .nav-link:hover, .site-nav .nav-link.active { color: var(--slope-green); background: #e8f1e8; }
++.site-nav .nav-link.active { font-weight: 650; }
++.site-nav .offcanvas { max-width: 90vw; }
++.page-shell { max-width: 1240px; margin: auto; padding: 2rem 1rem 3rem; }
++.page-heading { display: flex; flex-wrap: wrap; gap: 1rem; align-items: center; justify-content: space-between; margin-bottom: 1.5rem; }
++.page-heading h1 { font-size: clamp(1.65rem, 4vw, 2.2rem); font-weight: 700; letter-spacing: -.045em; margin: .35rem 0; }
++.eyebrow { color: var(--slope-brown); font-weight: 700; font-size: .7rem; letter-spacing: .12em; text-transform: uppercase; }
++.text-muted, .page-subtitle { color: var(--slope-muted) !important; }
++.page-subtitle { margin: 0; font-size: .95rem; }
++.role-tag { background: #eee6db; color: #61432e; border: 1px solid #e4d6c4; border-radius: 100px; padding: .35rem .75rem; font-size: .75rem; font-weight: 650; }
++.card { border: 1px solid var(--slope-border); border-radius: 12px; box-shadow: 0 2px 5px #24362d04; transition: border-color .15s ease; overflow: hidden; }
++.card:hover { border-color: #92ab98; }
++.card-header { padding: 1rem 1.25rem; background: #fff; border-bottom: 1px solid var(--slope-border); }
++.card-header h2 { font-size: 1rem; font-weight: 650; margin: 0; }
++.card-body { padding: 1.25rem; }
++.stat-card { height: 100%; border-left: 3px solid #62846b; }
++.stat-card.brown { border-left-color: #9a795a; }
++.stat-label { color: var(--slope-muted); font-size: .8rem; }
++.stat-number { font-size: 2rem; font-weight: 650; letter-spacing: -.04em; margin: .3rem 0; }
++.stat-note { color: var(--slope-muted); font-size: .75rem; margin: 0; }
++.map-placeholder { min-height: 280px; display: grid; place-items: center; padding: 2rem; text-align: center; background-color: #edf1e7; background-image: linear-gradient(#d9e2d54d 1px, transparent 1px), linear-gradient(90deg, #d9e2d54d 1px, transparent 1px); background-size: 36px 36px; }
++.map-placeholder .map-symbol { display: inline-grid; place-items: center; width: 54px; height: 54px; border: 1px solid #a5b9a6; background: #ffffffa6; border-radius: 50%; margin-bottom: 1rem; font-size: 1.5rem; color: var(--slope-green); }
++.map-placeholder h3 { font-size: 1.1rem; }
++.map-placeholder p { max-width: 310px; margin: .5rem auto 0; color: var(--slope-muted); font-size: .85rem; }
++.map-caption { background: #fff; color: var(--slope-muted); font-size: .75rem; padding: .8rem 1.25rem; border-top: 1px solid var(--slope-border); }
++.assessment-empty { background: #f5f4ee; border: 1px solid #e2e1d8; border-radius: 8px; padding: 1rem; margin-bottom: 1rem; }
++.assessment-empty h3 { font-size: .95rem; }
++.assessment-empty p { font-size: .85rem; margin-bottom: 0; color: var(--slope-muted); }
++.rainfall-grid { display: flex; gap: .5rem; margin: 1rem 0; }
++.rainfall-grid > div { flex: 1; padding: .7rem .3rem; background: #f7f8f4; border-radius: 6px; text-align: center; }
++.rainfall-grid span { display: block; font-size: .75rem; color: var(--slope-muted); }
++.rainfall-grid strong { font-size: 1.1rem; }
++.prototype-note { font-size: .75rem; line-height: 1.6; color: var(--slope-muted); }
++.action-card { background: #f1eae0; border-color: #dfd1bf; }
++.action-card h3 { font-size: 1rem; color: #61432e; }
++.btn { border-radius: 7px; font-weight: 550; padding: .55rem .9rem; transition: background-color .15s, border-color .15s; }
++.btn-sm { font-size: .75rem; padding: .35rem .65rem; }
++.btn-primary { --bs-btn-bg: #205b43; --bs-btn-border-color: #205b43; --bs-btn-hover-bg: #184733; --bs-btn-hover-border-color: #184733; --bs-btn-active-bg: #143e2c; --bs-btn-active-border-color: #143e2c; }
++.btn-outline-primary { --bs-btn-color: #205b43; --bs-btn-border-color: #205b43; --bs-btn-hover-bg: #205b43; --bs-btn-hover-border-color: #205b43; --bs-btn-active-bg: #184733; --bs-btn-active-border-color: #184733; }
++.btn-secondary { --bs-btn-bg: #705139; --bs-btn-border-color: #705139; --bs-btn-hover-bg: #553d2b; --bs-btn-hover-border-color: #553d2b; --bs-btn-active-bg: #553d2b; }
++.btn-outline-secondary { --bs-btn-color: #705139; --bs-btn-border-color: #b5a18c; --bs-btn-hover-bg: #705139; --bs-btn-hover-border-color: #705139; }
++.form-control:focus { border-color: #62846b; box-shadow: 0 0 0 .2rem #205b4320; }
++.form-floating > label { color: var(--slope-muted); }
++.table { --bs-table-color: #314439; --bs-table-bg: transparent; margin-bottom: 0; font-size: .85rem; }
++.table > :not(caption) > * > * { padding: 1rem 1.25rem; border-bottom-color: #e8ece5; }
++.table thead th { background: #f7f8f4; color: #657266; font-size: .68rem; text-transform: uppercase; letter-spacing: .06em; white-space: nowrap; }
++.table tbody tr:last-child td { border-bottom: 0; }
++.table tbody tr:hover { background: #f8faf5; }
++.table .empty-cell { text-align: center; padding: 2.5rem 1rem; color: var(--slope-muted); }
++.risk-badge { display: inline-block; border-radius: 5px; padding: .3rem .5rem; font-size: .7rem; font-weight: 650; text-transform: uppercase; white-space: nowrap; }
++.risk-low { background: #e6f0e6; color: #285333; }
++.risk-normal { background: #e5edf4; color: #284d69; }
++.risk-medium { background: #fff0ce; color: #78530c; }
++.risk-high { background: #f8e2df; color: #8d3029; }
++.risk-unavailable, .risk-unknown { background: #eceee9; color: #566151; }
++.site-footer { max-width: 1208px; margin: auto; padding: 1.25rem 1rem; border-top: 1px solid var(--slope-border); display: flex; flex-wrap: wrap; justify-content: space-between; gap: .75rem; color: var(--slope-muted); font-size: .75rem; }
++.auth-shell { max-width: 440px; margin: 2.5rem auto; padding: 0 1rem; }
++.auth-intro { text-align: center; margin-bottom: 1.5rem; }
++.auth-intro h1 { font-size: 2rem; font-weight: 750; letter-spacing: -.05em; margin-top: .6rem; }
++.auth-card { border-top: 3px solid var(--slope-green); }
++.auth-card h2 { font-size: 1.2rem; font-weight: 650; }
++.auth-register { border-top: 1px solid var(--slope-border); background: #fafaf7; }
++.reading-details { border-left: 3px solid var(--slope-brown); }
++.detail-list { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin: 0; }
++.detail-list dt { color: var(--slope-muted); font-weight: 400; font-size: .8rem; }
++.detail-list dd { margin: .3rem 0 0; overflow-wrap: anywhere; }
++:focus-visible { outline: 3px solid #97754c; outline-offset: 3px; }
++@media (max-width: 575px) {
++    .page-shell { padding-top: 1.25rem; }
++    .card-body, .card-header { padding: 1rem; }
++    .stat-number { font-size: 1.65rem; }
++    .map-placeholder { min-height: 240px; }
++    .detail-list { grid-template-columns: 1fr; }
++    .auth-shell { margin-top: 1.5rem; }
+ }
+-
+-.dialog::backdrop {
+-    background: rgba(0, 0, 0, 0.5);
+-}
+-   
+\ No newline at end of file
++@media (prefers-reduced-motion: reduce) { *, *::before, *::after { transition: none !important; scroll-behavior: auto !important; } }
+diff --git a/class/events.php b/class/events.php
+index f4ed039..7364c7e 100644
+--- a/class/events.php
++++ b/class/events.php
+@@ -1,74 +1,53 @@
+ <?php
+ require_once __DIR__ . '/db.php';
+-class event extends db{
+-  public function get_total_locations(){
+-      $sql = "SELECT * FROM locations WHERE active = 1";
+-      $smtm = $this->connect()->query($sql);
+-      
+-      $count = $smtm->fetchAll(PDO::FETCH_ASSOC);
+-      $total = count($count);
+-      return $total;
+ 
+-  }
+-  public function get_pending_reports_total(){
+-    $sql = "SELECT * FROM events WHERE type = 'report' AND status = 'pending' ";
+-      $smtm = $this->connect()->query($sql);
+-      
+-      $count = $smtm->fetchAll(PDO::FETCH_ASSOC);
+-      $total = count($count);
+-      return $total;
+-  }
+-  public function get_high_risk(){
+-    $sql = "SELECT * FROM events WHERE type = 'reading' AND archived = 0 AND risk_level = 'high' ";
+-      $smtm = $this->connect()->query($sql);
+-      
+-      $count = $smtm->fetchAll(PDO::FETCH_ASSOC);
+-      $total = count($count);
+-      return $total;
+-  }
+-  public function get_med_risk(){
+-    $sql = "SELECT * FROM events WHERE type = 'reading' AND archived = 0 AND risk_level = 'medium' ";
+-      $smtm = $this->connect()->query($sql);
+-      
+-      $count = $smtm->fetchAll(PDO::FETCH_ASSOC);
+-      $total = count($count);
+-      return $total;
+-  }
+-  public function get_readings(){
+-    $sql = "SELECT events.*, locations.name FROM events INNER JOIN locations ON events.location_id = locations.id WHERE events.type = 'reading' AND events.archived = 0";
+-    $readings = $this->connect()->query($sql)->fetchAll(PDO::FETCH_ASSOC);
+-    return $readings;
+-
+-  }
+-  public function get_dialog($id){
+-    $stmt = $this->connect()->prepare(
+-    "SELECT events.*, locations.name FROM events INNER JOIN locations ON events.location_id = locations.id WHERE events.type = 'reading' AND events.archived = 0 AND events.id = ?");
+-
+-    $stmt->execute([$id]);
+-
+-    $reading = $stmt->fetch(PDO::FETCH_ASSOC);
+-    return $reading;
+-  }
+-
+-  function risk_color($risk){
+-    if($risk === 'low') return "<td class='text text-success'>LOW</td>";
+-    if($risk === 'normal') return "<td class='text text-primsry'>NORMAL</td>";
+-    if($risk === 'medium') return "<td class='text text-warning'>MEDIUM</td>";
+-    if($risk === 'high') return "<td class='text text-danger'>HIGH</td>";
+-    if($risk === 'unknown') return "<td class='text text-inverse'>UNKNOWN</td>";
+-    if($risk === 'unavailable') return "<td class='text text-inverse'>UNAVAILABLE</td>";
+-  
+-}
+-
+-function get_pending_reports(){
+-  $sql = "SELECT locations.name AS location_name, users.full_name AS reporter, users.phone AS contact, events.status AS report_status, events.created_at AS report_date FROM events INNER JOIN locations INNER JOIN users ON events.location_id = locations.id AND events.user_id = users.id WHERE events.type = 'report' AND events.status = 'pending' ";
+-  $reports = $this->connect()->query($sql)->fetchAll(PDO::FETCH_ASSOC);
+-  return $reports;
++class event extends db {
++    public function get_total_locations() {
++        return (int) $this->connect()->query('SELECT COUNT(*) FROM locations WHERE active = 1')->fetchColumn();
++    }
++
++    public function get_pending_reports_total() {
++        return (int) $this->connect()->query("SELECT COUNT(*) FROM events WHERE type = 'report' AND status = 'pending'")->fetchColumn();
++    }
++
++    public function get_high_risk() {
++        return (int) $this->connect()->query("SELECT COUNT(*) FROM events WHERE type = 'reading' AND archived = 0 AND risk_level = 'high'")->fetchColumn();
++    }
++
++    public function get_med_risk() {
++        return (int) $this->connect()->query("SELECT COUNT(*) FROM events WHERE type = 'reading' AND archived = 0 AND risk_level = 'medium'")->fetchColumn();
++    }
++
++    public function get_readings() {
++        $sql = "SELECT events.*, locations.name FROM events
++            INNER JOIN locations ON events.location_id = locations.id
++            WHERE events.type = 'reading' AND events.archived = 0
++            ORDER BY events.observed_at DESC, events.id DESC";
++        return $this->connect()->query($sql)->fetchAll();
++    }
++
++    public function get_dialog($id) {
++        $stmt = $this->connect()->prepare("SELECT events.*, locations.name FROM events
++            INNER JOIN locations ON events.location_id = locations.id
++            WHERE events.type = 'reading' AND events.archived = 0 AND events.id = ?");
++        $stmt->execute([$id]);
++        return $stmt->fetch();
++    }
++
++    public function get_user_report_count($user_id) {
++        $stmt = $this->connect()->prepare("SELECT COUNT(*) FROM events WHERE type = 'report' AND user_id = ?");
++        $stmt->execute([$user_id]);
++        return (int) $stmt->fetchColumn();
++    }
++
++    public function get_pending_reports() {
++        $sql = "SELECT locations.name AS location_name, users.full_name AS reporter,
++            COALESCE(events.contact_phone, users.phone) AS contact,
++            events.status AS report_status, events.created_at AS report_date
++            FROM events INNER JOIN locations ON events.location_id = locations.id
++            LEFT JOIN users ON events.user_id = users.id
++            WHERE events.type = 'report' AND events.status = 'pending'
++            ORDER BY events.created_at DESC, events.id DESC";
++        return $this->connect()->query($sql)->fetchAll();
++    }
+ }
+-
+-
+-}
+-
+-
+-
+-?>
+\ No newline at end of file
+diff --git a/dashboard.php b/dashboard.php
+index aa0987d..20fb01a 100644
+--- a/dashboard.php
++++ b/dashboard.php
+@@ -1,290 +1,14 @@
+ <?php
+ require_once __DIR__ . '/includes/session.php';
+-require_once __DIR__ . '/class/events.php';
+ if (empty($_SESSION['USER_ID']) || !in_array($_SESSION['ROLE'] ?? '', ['admin', 'user'], true)) {
+     header('Location: ' . BASE_URL . '/index.php');
+     exit;
+ }
+-
+-$event = new event();
+-$readings = [];
+-$reports = [];
+-$dialog_readings = [];
+-$totalLocations = $totalReports = $highReadings = $mediumReadings = 0;
+-$error = '';
+-try {
+-    $readings = $event->get_readings();
+-    $totalLocations = $event->get_total_locations();
+-    $highReadings = $event->get_high_risk();
+-    $mediumReadings = $event->get_med_risk();
+-    if ($_SESSION['ROLE'] === 'admin') {
+-        $reports = $event->get_pending_reports();
+-        $totalReports = $event->get_pending_reports_total();
+-    }
+-    $id = filter_input(INPUT_GET, 'dialog_id', FILTER_VALIDATE_INT);
+-    if ($id && $id > 0) {
+-        $reading = $event->get_dialog($id);
+-        if ($reading) {
+-            $dialog_readings = [$reading];
+-        }
+-    }
+-} catch (PDOException $exception) {
+-    error_log('SmartSlope dashboard: ' . $exception->getMessage());
+-    http_response_code(503);
+-    $error = 'Dashboard data is unavailable. Check MySQL and the database configuration.';
++$page = $_SESSION['ROLE'] === 'admin' ? '/users/admin/admin.php' : '/users/user/user.php';
++// Preserve existing bookmarked reading-detail links.
++$id = filter_input(INPUT_GET, 'dialog_id', FILTER_VALIDATE_INT);
++if ($id && $id > 0) {
++    $page .= '?dialog_id=' . $id;
+ }
+-require_once __DIR__ . '/includes/header.php';
+-?>
+-<?php if ($error !== ''): ?>
+-    <p class="alert alert-danger" role="alert"><?= htmlspecialchars($error, ENT_QUOTES, 'UTF-8') ?></p>
+-<?php endif; ?>
+-
+-<div class="container text-center" style="margin-top: 5px; padding:5px">
+-  <div class="row">
+-    <div class="col ">
+-      <h1>Dashboard</h1>
+-    </div>
+-    <div class="col">
+-    
+-    </div>
+-    <div class="col">
+-   
+-    </div>
+-  </div>
+-</div>
+-<div class="container" style="border: 2px solid; height: 400px; width: 100%; ">
+-  <h2>Barangay Irisan Map</h2>
+-</div>
+-<div class="container" style="  width: 100%; margin-top:10px">
+-
+-
+-  <div class="card" >
+-    <div class="card-header">
+-      <h5>Reading summary</h5>
+-    </div>
+-    <div class="card-body"  >
+-      <div class="row" style="text-align: center;">
+-          <div class="col ">
+-            <h2><?php echo $totalLocations?></h2>
+-            <span >Monitored Locations</span>
+-          </div>
+-          <div class="col">
+-            <h2><?php echo $totalReports?></h2>
+-            <span>Pending Reports</span>
+-          </div>
+-          <div class="col">
+-            <h2><?php echo $highReadings?></h2>
+-            <span>Saved high readings</span>
+-          </div>
+-          <div class="col">
+-            <h2><?php echo $mediumReadings?></h2>
+-            <span>Saved medium readings</span>
+-          </div>
+-        </div>
+-      </div>
+-    </div>
+-
+-  </div>
+-</div>
+-<div class="container" style=" height: 400px; width: 100%; margin-top:10px">
+-  <div class="card">
+-    <div class="card-header">
+-      <h5>Landslide awareness analyzer</h5>
+-    </div>
+-    <div class="card-body">
+-      <div class="card-body " style="background: lightgray; border-radius: 5px">
+-        <h6 class="card-title fw-bold">Current assessment unavailable</h6>
+-        <span>Select a location and refresh weather. Last saved readings remain historical context.</span>
+-      </div>
+-      <p class="">Academic prototype, not an official warning. Updates follow manual weather refresh. No automatic evacuation instructions.</p>
+-      <span class="fw-bold">Prototype rainfall-screening category</span><br>
+-      <p class="btn btn-secondary fw-bold">Unavailable</p>
+-      <div class="card-body" style="background: lightgray; border-radius: 5px">
+-        <span>A current assessment is unavailable. Select an Irisan location to view its assessment.</span>
+-      </div>
+-      <div class="together-container">
+-        <span class="fw-bold">Location:</span>
+-        <span>No Location Selected</span>
+-      </div>
+-      
+-      <div class="row">
+-        <div class="col">
+-          <div class="card-body" style="border: 1px solid lightgray; border-radius: 5px">
+-            <span>1h rainfall</span><br>
+-            <span class="fw-bold">Unavailable</span>
+-          </div>
+-        </div>
+-        <div class="col">
+-          <div class="card-body" style="border: 1px solid lightgray; border-radius: 5px">
+-            <span>24h rainfall</span><br>
+-            <span class="fw-bold">Unavailable</span>
+-          </div>
+-        </div>
+-        <div class="col">
+-          <div class="card-body" style="border: 1px solid lightgray; border-radius: 5px">
+-            <span>72h rainfall</span><br>
+-            <span class="fw-bold">Unavailable</span>
+-          </div>
+-        </div>
+-      </div>
+-      <div class="together-container">
+-        <span class="fw-bold">Provider valid time:</span>
+-        <span>Unavailable</span><br>
+-        <span class="fw-bold">Rainfall window end:</span>
+-        <span>Unavailable</span><br>
+-        <span class="fw-bold">Retrieved: </span>
+-        <span>Unavailable</span><br>
+-        <span class="fw-bold">Source: </span>
+-        <span>Source Unavailable</span>
+-      </div>
+-      <div class="card-body" style="border: 1px solid lightgray; border-radius: 5px">
+-         <div class="together-container">
+-            <span >Why this category?</span>
+-            <span class="btn btn-secondary fw-bold" >CALCULATED</span>
+-          </div>
+-          <h6>No saved reading is available.</h6>
+-          <span >Rule: prototype-1 (legacy version not recorded). Historical inputs: not retained for this legacy record.</span>
+-      </div>
+-      <div class="card-body" style="border: 1px solid lightgray; border-radius: 5px; margin-top:10px">
+-          <h6>Baseline susceptibility: Unknown</h6>
+-          <span >No reviewed susceptibility dataset is installed.</span>
+-      </div>
+-    </div>
+-  </div>
+-
+-  <div class="card">
+-    <div class="card-header">
+-        <h5>Recent Weather Readings</h5>
+-        <div class="d-flex align-items-end" style="justify-content: end;">
+-        
+-          <button class="btn btn-outline-danger" <?php echo check_role()?> >Remove Selected</button>
+-          <button class="btn btn-outline-primary">View All</button>
+-        </div>
+-        
+-    </div>
+-    <div class="card-body">
+-      <table class="table table-striped">
+-          <tr>
+-            <th>
+-              <button class="btn btn-outlined-danger" <?php echo check_role() ?>>
+-                <img src="<?= BASE_URL ?>/assets/img/trash.svg" alt="delete">
+-              </button>
+-            </th>
+-            <th>Location</th>
+-            <th>Current assessment</th>
+-            <th>Rainfall mm <br>1h / 24h / 72h</th>
+-            <th>Provider time (PHT)</th>
+-            <th>Details</th>
+-            <th>Data Status</th>
+-            <th <?php echo check_role() ?>>Action</th>
+-          </tr>
+-          
+-          <?php foreach ($readings as $reading):?>
+-          <tr>
+-            <td>
+-              <input type="checkbox">
+-            </td>
+-            <td><?= htmlspecialchars((string) $reading['name'], ENT_QUOTES, 'UTF-8') ?></td>
+-            <?php echo $event->risk_color($reading['risk_level'])?>
+-            <td><?php echo $reading['rainfall_1h']. "/" . $reading['rainfall_24h']. "/" .  $reading['rainfall_72h']?></td>
+-            <td><?= htmlspecialchars((string) $reading['observed_at'], ENT_QUOTES, 'UTF-8') ?></td>
+-            <td>
+-              
+-              <a class="btn btn-outline-success" command="show-modal" commandfor="view_all" href="?dialog_id=<?= (int) $reading['id'] ?>">View All</a>
+-            </td>
+-            <td><?php echo check_status($reading['stale'])?></td>
+-            <td <?php echo check_role() ?>>
+-              <button class="btn btn-outline-primary">Edit</button>
+-            </td>
+-          </tr>
+-          <?php endforeach?>
+-          
+-           
+-            
+-         
+-      </table>
+-      <div class="card" style="margin-inline-start:auto;">
+-     
+-
+-      <dialog id="view_all" class="dialog" <?= !empty($dialog_readings) ? 'open' : '' ?> >
+-          <div class="card">
+-              <?php if (!empty($dialog_readings)): ?>
+-                  <?php foreach ($dialog_readings as $reading): ?>
+-                      <div class="card-header">
+-                          <h6>
+-                              Additional Details
+-                              <?= htmlspecialchars((string) $reading['id'], ENT_QUOTES, 'UTF-8') ?>
+-                          </h6>
+-                      </div>
+-
+-                      <div class="card-body">
+-                          <p>
+-                              <strong>Location:</strong>
+-                              <?= htmlspecialchars((string) $reading['name'], ENT_QUOTES, 'UTF-8') ?>
+-                          </p>
+-                          <p>
+-                              <strong>Provider valid time:</strong>
+-                              <?= htmlspecialchars((string) $reading['observed_at'], ENT_QUOTES, 'UTF-8') ?>
+-                          </p>
+-                      </div>
+-                  <?php endforeach; ?>
+-              <?php else: ?>
+-                  <div class="card-body">
+-                      No details were found for this event.
+-                  </div>
+-              <?php endif; ?>
+-
+-              <div class="card-footer">
+-                  <button command="close" commandfor="view_all">Close</button>
+-              </div>
+-          </div>
+-      </dialog>
+-      
+-      
+-      </div>
+-
+-    </div>
+-
+-  </div>
+-
+-  <?php if ($_SESSION['ROLE'] === 'admin'): ?>
+-  <div class="card">
+-      <div class="card-header">
+-        <h5>Pending Reports</h5>
+-        <div class="d-flex align-items-end" style="justify-content: end;">
+-        
+-         
+-          <button class="btn btn-outline-success">All Reports</button>
+-        </div>
+-      </div>
+-      <div class="card-body">
+-          <table class="table table-striped">
+-            <tr>
+-              <th>Location</th>
+-              <th>Reporter</th>
+-              <th>Contact</th>
+-              <th>Status</th>
+-              <th>Date</th>
+-              <th>Actions</th>
+-            </tr>
+-            <?php foreach($reports as $report):?>
+-            <tr>
+-              <td><?= htmlspecialchars((string) $report['location_name'], ENT_QUOTES, 'UTF-8') ?></td>
+-              <td><?= htmlspecialchars((string) $report['reporter'], ENT_QUOTES, 'UTF-8') ?></td>
+-              <td><?= htmlspecialchars((string) $report['contact'], ENT_QUOTES, 'UTF-8') ?></td>
+-              <td><?= htmlspecialchars((string) $report['report_status'], ENT_QUOTES, 'UTF-8') ?></td>
+-              <td><?= htmlspecialchars((string) $report['report_date'], ENT_QUOTES, 'UTF-8') ?></td>
+-              <td>
+-                <a href=""><?php echo check_report_status($report['report_status'])?></a>
+-              </td>
+-            </tr>
+-            <?php endforeach?>
+-          </table>
+-      </div>
+-  </div>
+-
+-  <?php endif; ?>
+-</div>
+-
+-</body>
+-</html>
+\ No newline at end of file
++header('Location: ' . BASE_URL . $page);
++exit;
+diff --git a/includes/dashboard.php b/includes/dashboard.php
+new file mode 100644
+index 0000000..c7e01bd
+--- /dev/null
++++ b/includes/dashboard.php
+@@ -0,0 +1,84 @@
++<?php
++require_once __DIR__ . '/session.php';
++require_once __DIR__ . '/../class/events.php';
++if (empty($_SESSION['USER_ID']) || !in_array($_SESSION['ROLE'] ?? '', ['admin', 'user'], true)) {
++    header('Location: ' . BASE_URL . '/index.php');
++    exit;
++}
++$admin = $_SESSION['ROLE'] === 'admin';
++$pageTitle = $admin ? 'Admin dashboard' : 'Your dashboard';
++$activePage = 'dashboard';
++$event = new event();
++$readings = $reports = [];
++$detail = null;
++$totalLocations = $totalReports = $highReadings = $mediumReadings = null;
++$error = '';
++try {
++    $readings = array_slice($event->get_readings(), 0, 5);
++    $totalLocations = $event->get_total_locations();
++    $highReadings = $event->get_high_risk();
++    $mediumReadings = $event->get_med_risk();
++    if ($admin) {
++        $reports = $event->get_pending_reports();
++        $totalReports = $event->get_pending_reports_total();
++    } else {
++        $totalReports = $event->get_user_report_count($_SESSION['USER_ID']);
++    }
++    $id = filter_input(INPUT_GET, 'dialog_id', FILTER_VALIDATE_INT);
++    if ($id && $id > 0) {
++        $detail = $event->get_dialog($id);
++    }
++} catch (PDOException $exception) {
++    error_log('SmartSlope dashboard: ' . $exception->getMessage());
++    http_response_code(503);
++    $error = 'Dashboard data is unavailable. Please try again later.';
++    $readings = $reports = [];
++    $totalLocations = $totalReports = $highReadings = $mediumReadings = null;
++}
++require_once __DIR__ . '/header.php';
++?>
++<main class="page-shell">
++    <div class="page-heading">
++        <div><span class="eyebrow">Barangay Irisan · Baguio City</span><h1><?= $admin ? 'Community overview' : 'Your community, at a glance' ?></h1><p class="page-subtitle">Welcome, <?= htmlspecialchars($_SESSION['FULLNAME'], ENT_QUOTES, 'UTF-8') ?>. <?= $admin ? 'Review saved readings and community reports.' : 'Explore saved weather readings for your community.' ?></p></div>
++        <a class="btn btn-outline-primary" href="<?= BASE_URL ?>/readings.php">View readings <span aria-hidden="true">↗</span></a>
++    </div>
++    <?php if ($error): ?><p class="alert alert-danger" role="alert"><?= htmlspecialchars($error, ENT_QUOTES, 'UTF-8') ?></p><?php endif; ?>
++    <div class="row g-3 mb-4">
++        <div class="col-6 col-lg-3"><div class="card stat-card"><div class="card-body"><div class="stat-label">Monitored locations</div><div class="stat-number"><?= $totalLocations ?? '—' ?></div><p class="stat-note">Active locations in Irisan</p></div></div></div>
++        <div class="col-6 col-lg-3"><div class="card stat-card brown"><div class="card-body"><div class="stat-label"><?= $admin ? 'Pending reports' : 'Your reports' ?></div><div class="stat-number"><?= $totalReports ?? '—' ?></div><p class="stat-note"><?= $admin ? 'Awaiting administrator review' : 'Reports submitted by your account' ?></p></div></div></div>
++        <div class="col-6 col-lg-3"><div class="card stat-card"><div class="card-body"><div class="stat-label">Saved high readings</div><div class="stat-number"><?= $highReadings ?? '—' ?></div><p class="stat-note">Historical records · not live risk</p></div></div></div>
++        <div class="col-6 col-lg-3"><div class="card stat-card brown"><div class="card-body"><div class="stat-label">Saved medium readings</div><div class="stat-number"><?= $mediumReadings ?? '—' ?></div><p class="stat-note">Historical records · not live risk</p></div></div></div>
++    </div>
++    <div class="row g-4 mb-4">
++        <div class="col-lg-8"><section class="card h-100" aria-labelledby="map-title">
++            <div class="card-header d-flex flex-wrap align-items-center justify-content-between gap-2"><h2 id="map-title">Barangay Irisan map</h2><span class="role-tag">Irisan study area</span></div>
++            <div class="map-placeholder flex-grow-1"><div><span class="map-symbol" aria-hidden="true">⌖</span><h3>A closer look at your community</h3><p>Interactive location selection is not available yet. You can browse saved readings below.</p></div></div>
++            <div class="map-caption">Study coverage: Barangay Irisan, Baguio City</div>
++        </section></div>
++        <div class="col-lg-4"><section class="card h-100" aria-labelledby="assessment-title">
++            <div class="card-header"><h2 id="assessment-title">Landslide awareness</h2></div>
++            <div class="card-body"><div class="assessment-empty"><h3>Current assessment unavailable</h3><p>No location is selected. Saved readings are historical context.</p></div>
++                <span class="eyebrow">Rainfall totals</span><div class="rainfall-grid"><div><span>1 hour</span><strong>—</strong></div><div><span>24 hours</span><strong>—</strong></div><div><span>72 hours</span><strong>—</strong></div></div>
++                <p class="prototype-note mb-0">Academic prototype, not an official warning. No automatic evacuation instructions.</p>
++            </div>
++        </section></div>
++    </div>
++    <section class="card mb-4" aria-labelledby="readings-title">
++        <div class="card-header d-flex align-items-center justify-content-between gap-2"><h2 id="readings-title">Recent weather readings</h2><a class="btn btn-sm btn-outline-primary" href="<?= BASE_URL ?>/readings.php">View all</a></div>
++        <?php require __DIR__ . '/readings-table.php'; ?>
++    </section>
++    <?php if ($admin): ?>
++        <section class="card" aria-labelledby="reports-title">
++            <div class="card-header d-flex align-items-center justify-content-between gap-2"><h2 id="reports-title">Pending reports</h2><a class="btn btn-sm btn-outline-secondary" href="<?= BASE_URL ?>/users/admin/admin_panel.php">Management</a></div>
++            <div class="table-responsive"><table class="table align-middle"><caption class="visually-hidden">Reports awaiting administrator review</caption><thead><tr><th scope="col">Location</th><th scope="col">Reporter</th><th scope="col">Contact</th><th scope="col">Submitted (UTC)</th><th scope="col">Status</th></tr></thead><tbody>
++                <?php foreach ($reports as $report): ?><tr>
++                    <td><?= htmlspecialchars($report['location_name'], ENT_QUOTES, 'UTF-8') ?></td><td><?= htmlspecialchars($report['reporter'] ?? 'Former account', ENT_QUOTES, 'UTF-8') ?></td><td><?= htmlspecialchars($report['contact'] ?? 'Not provided', ENT_QUOTES, 'UTF-8') ?></td><td><?= htmlspecialchars($report['report_date'], ENT_QUOTES, 'UTF-8') ?></td><td><span class="risk-badge risk-medium">Pending</span></td>
++                </tr><?php endforeach; ?>
++                <?php if (!$reports): ?><tr><td colspan="5" class="empty-cell">No pending reports to review.</td></tr><?php endif; ?>
++            </tbody></table></div>
++        </section>
++    <?php else: ?>
++        <section class="card action-card"><div class="card-body d-flex flex-wrap align-items-center justify-content-between gap-3"><div><h3>Notice something in your area?</h3><p class="mb-0 small">Ground reports help provide context alongside weather readings.</p></div><a class="btn btn-secondary" href="<?= BASE_URL ?>/users/user/submit_report.php">Ground reports</a></div></section>
++    <?php endif; ?>
++</main>
++<?php require_once __DIR__ . '/footer.php'; ?>
+diff --git a/includes/footer.php b/includes/footer.php
+new file mode 100644
+index 0000000..66f954a
+--- /dev/null
++++ b/includes/footer.php
+@@ -0,0 +1,6 @@
++<footer class="site-footer">
++    <span>SmartSlope &middot; Barangay Irisan, Baguio City</span>
++    <span>Academic prototype &middot; Not an official warning service</span>
++</footer>
++</body>
++</html>
+diff --git a/includes/header.php b/includes/header.php
+index 8673e35..899e0b6 100644
+--- a/includes/header.php
++++ b/includes/header.php
+@@ -1,88 +1,44 @@
+ <?php
+ require_once __DIR__ . '/session.php';
+-
+ if (empty($_SESSION['USER_ID']) || !in_array($_SESSION['ROLE'] ?? '', ['admin', 'user'], true)) {
+     header('Location: ' . BASE_URL . '/index.php');
+     exit;
+ }
+ $home = BASE_URL . ($_SESSION['ROLE'] === 'admin' ? '/users/admin/admin.php' : '/users/user/user.php');
++$pageTitle = $pageTitle ?? 'SmartSlope';
++$activePage = $activePage ?? '';
+ ?>
+ <!doctype html>
+ <html lang="en">
+ <head>
+-  <meta charset="UTF-8">
+-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+-  <title>SMART SLOPE</title>
+-
+-  <link rel="stylesheet" href="<?= BASE_URL ?>/assets/css/bootstrap.min.css">
+-  <link rel="stylesheet" href="<?= BASE_URL ?>/assets/css/style.css">
+-  <script src="<?= BASE_URL ?>/assets/js/bootstrap.bundle.min.js" defer></script>
+- 
++    <meta charset="UTF-8">
++    <meta name="viewport" content="width=device-width, initial-scale=1.0">
++    <title><?= htmlspecialchars($pageTitle, ENT_QUOTES, 'UTF-8') ?> | SmartSlope</title>
++    <link rel="stylesheet" href="<?= BASE_URL ?>/assets/css/bootstrap.min.css">
++    <link rel="stylesheet" href="<?= BASE_URL ?>/assets/css/style.css">
++    <script src="<?= BASE_URL ?>/assets/js/bootstrap.bundle.min.js" defer></script>
+ </head>
+ <body>
+-
+-<nav class="navbar navbar-dark bg-dark">
+-  <div class="container-fluid">
+-    <a class="navbar-brand" href="<?php echo $home?>">
+-      <img src="<?= BASE_URL ?>/assets/img/logo.jpeg"
+-           alt="Smart Slope logo"
+-           width="30"
+-           height="30"
+-           class="d-inline-block align-text-top">
+-      Smart Slope
+-    </a>
+-
+-    <button class="navbar-toggler"
+-            type="button"
+-            data-bs-toggle="offcanvas"
+-            data-bs-target="#navbarMenu"
+-            aria-controls="navbarMenu"
+-            aria-label="Open navigation menu">
+-      <span class="navbar-toggler-icon"></span>
+-    </button>
+-
+-    <div class="offcanvas offcanvas-end"
+-         tabindex="-1"
+-         id="navbarMenu"
+-         aria-labelledby="navbarMenuLabel">
+-
+-      <div class="offcanvas-header">
+-        <h5 class="offcanvas-title" id="navbarMenuLabel">Menu</h5>
+-
+-        <button type="button"
+-                class="btn-close"
+-                data-bs-dismiss="offcanvas"
+-                aria-label="Close menu"></button>
+-      </div>
+-
+-      <div class="offcanvas-body">
+-        <ul class="navbar-nav flex-column">
+-          <li class="nav-item">
+-            <a class="nav-link active text-dark" href="<?= $home ?>">Dashboard</a>
+-          </li>
+-          <?php if($_SESSION["ROLE"] === 'user'):?>
+-            <li class="nav-item">
+-              <a class="nav-link text-dark" href="<?= BASE_URL ?>/users/user/submit_report.php">Submit Report</a>
+-            </li>
+-          <?php else:?>
+-            <li class="nav-item">
+-              <a class="nav-link text-dark" href="<?= BASE_URL ?>/users/admin/admin_panel.php">Admin</a>
+-            </li>
+-          <?php endif?>
+-          <li class="nav-item">
+-            <a class="nav-link text-dark" href="<?= BASE_URL ?>/readings.php">Readings</a>
+-          </li>
+-          <li class="nav-item">
+-            <a class="nav-link text-dark" href="<?= BASE_URL ?>/methodology.php">Source/Methodology</a>
+-          </li>
+-          <li class="nav-item mt-3">
+-            
+-            <form action="<?= BASE_URL ?>/logout.php" method="post">
+-              <button type="submit" class="btn btn-outline-danger w-100">Log Out</button>
+-            </form>
+-          </li>
+-        </ul>
+-      </div>
++<nav class="navbar navbar-expand-lg site-nav py-3" aria-label="Main navigation">
++    <div class="container-xl">
++        <a class="navbar-brand d-flex align-items-center gap-2" href="<?= $home ?>"><span class="brand-mark" aria-hidden="true">SS</span> SmartSlope</a>
++        <button class="navbar-toggler" type="button" data-bs-toggle="offcanvas" data-bs-target="#navbarMenu" aria-controls="navbarMenu" aria-label="Open navigation"><span class="navbar-toggler-icon"></span></button>
++        <div class="offcanvas offcanvas-end" tabindex="-1" id="navbarMenu" aria-labelledby="navbarMenuLabel">
++            <div class="offcanvas-header"><h2 class="offcanvas-title h5" id="navbarMenuLabel">SmartSlope</h2><button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close navigation"></button></div>
++            <div class="offcanvas-body align-items-center gap-3">
++                <ul class="navbar-nav mx-lg-auto gap-1">
++                    <li class="nav-item"><a class="nav-link <?= $activePage === 'dashboard' ? 'active' : '' ?>" <?= $activePage === 'dashboard' ? 'aria-current="page"' : '' ?> href="<?= $home ?>">Dashboard</a></li>
++                    <li class="nav-item"><a class="nav-link <?= $activePage === 'readings' ? 'active' : '' ?>" <?= $activePage === 'readings' ? 'aria-current="page"' : '' ?> href="<?= BASE_URL ?>/readings.php">Readings</a></li>
++                    <?php if ($_SESSION['ROLE'] === 'admin'): ?>
++                        <li class="nav-item"><a class="nav-link <?= $activePage === 'admin' ? 'active' : '' ?>" href="<?= BASE_URL ?>/users/admin/admin_panel.php">Management</a></li>
++                    <?php else: ?>
++                        <li class="nav-item"><a class="nav-link <?= $activePage === 'report' ? 'active' : '' ?>" href="<?= BASE_URL ?>/users/user/submit_report.php">Submit report</a></li>
++                    <?php endif; ?>
++                    <li class="nav-item"><a class="nav-link <?= $activePage === 'methodology' ? 'active' : '' ?>" href="<?= BASE_URL ?>/methodology.php">Methodology</a></li>
++                </ul>
++                <span class="role-tag"><?= $_SESSION['ROLE'] === 'admin' ? 'Administrator' : 'Resident' ?></span>
++                <form action="<?= BASE_URL ?>/logout.php" method="post" class="mt-3 mt-lg-0"><button type="submit" class="btn btn-sm btn-outline-secondary">Log out</button></form>
++            </div>
++        </div>
+     </div>
+-  </div>
+ </nav>
+diff --git a/includes/readings-table.php b/includes/readings-table.php
+new file mode 100644
+index 0000000..c951cbd
+--- /dev/null
++++ b/includes/readings-table.php
+@@ -0,0 +1,38 @@
++<?php
++// This section is rendered by the authenticated dashboard or readings page.
++if (!isset($readings)) {
++    http_response_code(404);
++    exit;
++}
++?>
++<div class="table-responsive">
++    <table class="table align-middle">
++        <caption class="visually-hidden">Saved weather readings; categories are historical results, not a current warning.</caption>
++        <thead><tr><th scope="col">Location</th><th scope="col">Saved category</th><th scope="col">Rainfall mm<br>1h / 24h / 72h</th><th scope="col">Observed (UTC)</th><th scope="col">Details</th></tr></thead>
++        <tbody>
++        <?php foreach ($readings as $reading): ?>
++            <tr>
++                <td class="fw-semibold"><?= htmlspecialchars($reading['name'], ENT_QUOTES, 'UTF-8') ?></td>
++                <td><span class="risk-badge risk-<?= htmlspecialchars($reading['risk_level'] ?? 'unavailable', ENT_QUOTES, 'UTF-8') ?>"><?= htmlspecialchars($reading['risk_level'] ?? 'unavailable', ENT_QUOTES, 'UTF-8') ?></span></td>
++                <td><?= htmlspecialchars(($reading['rainfall_1h'] ?? '—') . ' / ' . ($reading['rainfall_24h'] ?? '—') . ' / ' . ($reading['rainfall_72h'] ?? '—'), ENT_QUOTES, 'UTF-8') ?></td>
++                <td><?= htmlspecialchars($reading['observed_at'] ?? 'Unavailable', ENT_QUOTES, 'UTF-8') ?></td>
++                <td><a class="btn btn-sm btn-outline-primary" href="?dialog_id=<?= (int) $reading['id'] ?>#reading-details" aria-label="Details for reading <?= (int) $reading['id'] ?>">Details</a></td>
++            </tr>
++        <?php endforeach; ?>
++        <?php if (!$readings): ?><tr><td colspan="5" class="empty-cell">No saved weather readings available.</td></tr><?php endif; ?>
++        </tbody>
++    </table>
++</div>
++<?php if ($detail): ?>
++<section class="card reading-details m-3" id="reading-details" tabindex="-1" aria-labelledby="detail-title">
++    <div class="card-header d-flex justify-content-between align-items-center"><h2 id="detail-title">Reading #<?= (int) $detail['id'] ?></h2><a class="btn btn-sm btn-outline-secondary" href="?">Close details</a></div>
++    <div class="card-body"><dl class="detail-list">
++        <div><dt>Location</dt><dd><?= htmlspecialchars($detail['name'], ENT_QUOTES, 'UTF-8') ?></dd></div>
++        <div><dt>Observed (UTC)</dt><dd><?= htmlspecialchars($detail['observed_at'] ?? 'Unavailable', ENT_QUOTES, 'UTF-8') ?></dd></div>
++        <div><dt>Temperature</dt><dd><?= $detail['temperature'] === null ? 'Unavailable' : htmlspecialchars($detail['temperature'], ENT_QUOTES, 'UTF-8') . ' °C' ?></dd></div>
++        <div><dt>Humidity</dt><dd><?= $detail['humidity'] === null ? 'Unavailable' : htmlspecialchars($detail['humidity'], ENT_QUOTES, 'UTF-8') . '%' ?></dd></div>
++        <div><dt>Wind speed</dt><dd><?= $detail['wind_speed'] === null ? 'Unavailable' : htmlspecialchars($detail['wind_speed'], ENT_QUOTES, 'UTF-8') . ' km/h' ?></dd></div>
++        <div><dt>Source</dt><dd><?= htmlspecialchars($detail['source'] ?? 'Unavailable', ENT_QUOTES, 'UTF-8') ?></dd></div>
++    </dl><p class="prototype-note mt-3 mb-0">This is a saved observation. Its category does not establish a current landslide warning.</p></div>
++</section>
++<?php endif; ?>
+diff --git a/index.php b/index.php
+index 022c119..da97586 100644
+--- a/index.php
++++ b/index.php
+@@ -54,61 +54,37 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+ <!doctype html>
+ <html lang="en">
+ <head>
+-  <meta charset="UTF-8">
+-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+-  <title>SMART SLOPE</title>
+-  <link rel="stylesheet" href="<?=BASE_URL?>/assets/css/bootstrap.min.css">
+-  <script src="<?=BASE_URL?>/assets/js/bootstrap.bundle.min.js" defer></script>
++    <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
++    <title>Welcome | SmartSlope</title>
++    <link rel="stylesheet" href="<?= BASE_URL ?>/assets/css/bootstrap.min.css">
++    <link rel="stylesheet" href="<?= BASE_URL ?>/assets/css/style.css">
+ </head>
+ <body>
+-    <main class="container py-4" style="text-align:center;">
+-        <h1>SMART SLOPE</h1>
+-        <?php if ($error !== ''): ?>
+-            <p class="alert alert-danger" role="alert"><?= htmlspecialchars($error, ENT_QUOTES, 'UTF-8') ?></p>
+-        <?php endif; ?>
+-        <?php if ($success !== ''): ?>
+-            <p class="alert alert-success" role="status"><?= htmlspecialchars($success, ENT_QUOTES, 'UTF-8') ?></p>
+-        <?php endif; ?>
+-        <center>
+-
+-        
+-            <div class="card " style="border:1px solid; width:300px;height:100%" >
+-                <div class="card-header">
+-                    <h2>Login</h2>
+-                </div>
+-                <div class="card-body">
+-                    <form action="" method="post">
+-                        <label for="">User Name</label><br>
+-                        <input type="text" name="username" class="form-control" required><br>
+-                        <label for="">Password</label><br>
+-                        <input type="password" name="password" class="form-control" required><br>
+-                        <button type="submit" class="btn btn-primary" name="login">Login</button>
+-                    </form>
+-
+-                </div>
+-                <div class="card-footer">
+-                    <h2>Register</h2>
+-                </div>
+-                <div class="card-body" style="margin: 10px;padding:5px">
+-                    <form action="" method="post">
+-                        <label for="">User Name</label><br>
+-                        <input type="text" name="username" class="form-control" required><br>
+-                        <label for="">Full Name</label><br>
+-                        <input type="text" name="full_name" class="form-control" required><br>
+-                        <label for="">Email</label><br>
+-                        <input type="email" name="email" class="form-control" required><br>
+-                        <label for="">Contact</label><br>
+-                        <input type="text" name="contact" class="form-control" required><br>
+-                        <label for="">Password</label><br>
+-                        <input type="password" name="password" class="form-control" required><br>
+-                        <button type="submit" class="btn btn-primary" name="register">Register</button>
+-                    </form>
+-                    <hr>
+-
+-                </div>
+-        
+-            </div>
+-        </center>
+-    </main>
++<main class="auth-shell">
++    <div class="auth-intro"><span class="brand-mark" aria-hidden="true">SS</span><h1>SmartSlope</h1><p class="page-subtitle">Landslide awareness for Barangay Irisan</p></div>
++    <?php if ($error !== ''): ?><p class="alert alert-danger" role="alert"><?= htmlspecialchars($error, ENT_QUOTES, 'UTF-8') ?></p><?php endif; ?>
++    <?php if ($success !== ''): ?><p class="alert alert-success" role="status"><?= htmlspecialchars($success, ENT_QUOTES, 'UTF-8') ?></p><?php endif; ?>
++    <div class="card auth-card">
++        <section class="card-body"><h2>Welcome back</h2><p class="text-muted small mb-4">Sign in to view your community dashboard.</p>
++            <form method="post">
++                <div class="form-floating mb-3"><input id="login-username" name="username" class="form-control" placeholder="Username" autocomplete="username" required><label for="login-username">Username</label></div>
++                <div class="form-floating mb-3"><input id="login-password" type="password" name="password" class="form-control" placeholder="Password" autocomplete="current-password" required><label for="login-password">Password</label></div>
++                <button type="submit" name="login" class="btn btn-primary w-100">Login</button>
++            </form>
++        </section>
++        <section class="card-body auth-register"><h2>Join your community</h2><p class="text-muted small mb-4">Create a resident account.</p>
++            <form method="post">
++                <div class="form-floating mb-3"><input id="register-username" type="text" name="username" class="form-control" placeholder="Username" autocomplete="username" maxlength="50" required><label for="register-username">Username</label></div>
++                <div class="form-floating mb-3"><input id="register-full_name" type="text" name="full_name" class="form-control" placeholder="Full name" autocomplete="name" maxlength="100" required><label for="register-full_name">Full name</label></div>
++                <div class="form-floating mb-3"><input id="register-email" type="email" name="email" class="form-control" placeholder="Email address" autocomplete="email" maxlength="254" required><label for="register-email">Email address</label></div>
++                <div class="form-floating mb-3"><input id="register-contact" type="tel" name="contact" class="form-control" placeholder="Contact number" autocomplete="tel" maxlength="20" required><label for="register-contact">Contact number</label></div>
++                <div class="form-floating mb-3"><input id="register-password" type="password" name="password" class="form-control" placeholder="Password" autocomplete="new-password" maxlength="72" required><label for="register-password">Password</label></div>
++                <p class="small text-muted">Use a password of 8–72 bytes.</p>
++                <button type="submit" name="register" class="btn btn-outline-primary w-100">Create account</button>
++            </form>
++        </section>
++    </div>
++    <p class="prototype-note text-center mt-4">Academic prototype · Not an official warning service</p>
++</main>
+ </body>
+ </html>
+diff --git a/methodology.php b/methodology.php
+index 08a88fd..a5861a6 100644
+--- a/methodology.php
++++ b/methodology.php
+@@ -1,4 +1,7 @@
+-<?php require_once __DIR__ . '/includes/header.php'; ?>
+-<main class="container py-4"><h1>Source / Methodology</h1><p>Methodology documentation will be added with the weather and assessment components.</p></main>
+-</body>
+-</html>
++<?php
++$pageTitle = 'Methodology';
++$activePage = 'methodology';
++require_once __DIR__ . '/includes/header.php';
++?>
++<main class="page-shell"><div class="page-heading"><div><span class="eyebrow">SmartSlope · Irisan</span><h1>Methodology</h1></div></div><section class="card"><div class="card-body"><p>SmartSlope is an academic landslide-awareness prototype for Barangay Irisan. Saved weather categories provide historical context; they are not official warnings or evacuation instructions.</p><a class="btn btn-outline-primary" href="<?= $home ?>">Back to dashboard</a></div></section></main>
++<?php require_once __DIR__ . '/includes/footer.php'; ?>
+diff --git a/readings.php b/readings.php
+index 3db7057..4cfc50a 100644
+--- a/readings.php
++++ b/readings.php
+@@ -1,39 +1,32 @@
+-<?php 
+-
+-include_once __DIR__ . "/includes/header.php"; ?>
+-<div class="container text-center" style="margin-top: 5px; padding:5px">
+-  <div class="row">
+-    <div class="col ">
+-      <h1>Weather Readings</h1>
+-    </div>
+-    <div class="col">
+-    
+-    </div>
+-    <div class="col">
+-      <button class="btn btn-danger">Remove Selected</button>
+-      <button class="btn btn-success">Export Selected</button>
+-    </div>
+-  </div>
+-</div>
+-<div class="container">
+-  <form action="" method="post">
+-    <table class="table table-striped">
+-      <tr>
+-        <th>Location</th>
+-        <th>Current assessment</th>
+-        <th>Rainfall <br>
+-          mm1h / 24h / 72h</th>
+-        <th>Provider time (PHT)</th>
+-        <th>Data status</th>
+-        <th>Details</th>
+-        <?php if($_SESSION["ROLE"] === 'admin'):?>
+-          <th>Action</th>
+-        <?php endif?>
+-      </tr>
+-
+-    </table>
+-  </form>
+-</div>
+-
+-</body>
+-</html>
++<?php
++require_once __DIR__ . '/includes/session.php';
++require_once __DIR__ . '/class/events.php';
++if (empty($_SESSION['USER_ID']) || !in_array($_SESSION['ROLE'] ?? '', ['admin', 'user'], true)) {
++    header('Location: ' . BASE_URL . '/index.php');
++    exit;
++}
++$pageTitle = 'Weather readings';
++$activePage = 'readings';
++$readings = [];
++$detail = null;
++$error = '';
++try {
++    $event = new event();
++    $readings = $event->get_readings();
++    $id = filter_input(INPUT_GET, 'dialog_id', FILTER_VALIDATE_INT);
++    if ($id && $id > 0) {
++        $detail = $event->get_dialog($id);
++    }
++} catch (PDOException $exception) {
++    error_log('SmartSlope readings: ' . $exception->getMessage());
++    http_response_code(503);
++    $error = 'Saved readings are unavailable. Please try again later.';
++}
++require_once __DIR__ . '/includes/header.php';
++?>
++<main class="page-shell">
++    <div class="page-heading"><div><span class="eyebrow">Weather history</span><h1>Saved readings</h1><p class="page-subtitle">Recorded observations for Irisan. Categories describe saved readings, not current warnings.</p></div><a class="btn btn-outline-primary" href="<?= $home ?>">Back to dashboard</a></div>
++    <?php if ($error): ?><p class="alert alert-danger" role="alert"><?= htmlspecialchars($error, ENT_QUOTES, 'UTF-8') ?></p><?php endif; ?>
++    <section class="card"><div class="card-header"><h2>Weather observations</h2></div><?php require __DIR__ . '/includes/readings-table.php'; ?></section>
++</main>
++<?php require_once __DIR__ . '/includes/footer.php'; ?>
+diff --git a/users/admin/admin.php b/users/admin/admin.php
+index e4da42d..3b771d2 100644
+--- a/users/admin/admin.php
++++ b/users/admin/admin.php
+@@ -8,13 +8,4 @@ if (($_SESSION['ROLE'] ?? '') !== 'admin') {
+     http_response_code(403);
+     exit('Access denied.');
+ }
+-require_once __DIR__ . '/../../includes/header.php';
+-?>
+-<main class="container py-4">
+-    <h1>This is Admin</h1>
+-    <p>Welcome, <?= htmlspecialchars($_SESSION['FULLNAME'], ENT_QUOTES, 'UTF-8') ?>.</p>
+-    <p>Username: <?= htmlspecialchars($_SESSION['USERNAME'], ENT_QUOTES, 'UTF-8') ?></p>
+-    <a class="btn btn-primary" href="<?= BASE_URL ?>/dashboard.php">View dashboard</a>
+-</main>
+-</body>
+-</html>
++require_once __DIR__ . '/../../includes/dashboard.php';
+diff --git a/users/admin/admin_panel.php b/users/admin/admin_panel.php
+index 1e646a9..aa5acd3 100644
+--- a/users/admin/admin_panel.php
++++ b/users/admin/admin_panel.php
+@@ -8,8 +8,9 @@ if (($_SESSION['ROLE'] ?? '') !== 'admin') {
+     http_response_code(403);
+     exit('Access denied.');
+ }
++$pageTitle = 'Management';
++$activePage = 'admin';
+ require_once __DIR__ . '/../../includes/header.php';
+ ?>
+-<main class="container py-4"><h1>Admin management</h1><p>This component will be added in a later phase.</p></main>
+-</body>
+-</html>
++<main class="page-shell"><div class="page-heading"><div><span class="eyebrow">SmartSlope · Irisan</span><h1>Management</h1></div></div><section class="card"><div class="card-body"><p>Location management, reading changes, and report review are not available yet. Saved readings and pending reports can be viewed on your dashboard.</p><a class="btn btn-outline-primary" href="<?= $home ?>">Back to dashboard</a></div></section></main>
++<?php require_once __DIR__ . '/../../includes/footer.php'; ?>
+diff --git a/users/user/submit_report.php b/users/user/submit_report.php
+index 4def823..8b475c4 100644
+--- a/users/user/submit_report.php
++++ b/users/user/submit_report.php
+@@ -8,8 +8,9 @@ if (($_SESSION['ROLE'] ?? '') !== 'user') {
+     http_response_code(403);
+     exit('Access denied.');
+ }
++$pageTitle = 'Ground reports';
++$activePage = 'report';
+ require_once __DIR__ . '/../../includes/header.php';
+ ?>
+-<main class="container py-4"><h1>Submit report</h1><p>This component will be added in a later phase.</p></main>
+-</body>
+-</html>
++<main class="page-shell"><div class="page-heading"><div><span class="eyebrow">SmartSlope · Irisan</span><h1>Ground reports</h1></div></div><section class="card"><div class="card-body"><p>Report submission is not available yet. You can browse saved weather readings from your dashboard.</p><a class="btn btn-outline-primary" href="<?= $home ?>">Back to dashboard</a></div></section></main>
++<?php require_once __DIR__ . '/../../includes/footer.php'; ?>
+diff --git a/users/user/user.php b/users/user/user.php
+index 80fa559..53d188c 100644
+--- a/users/user/user.php
++++ b/users/user/user.php
+@@ -8,13 +8,4 @@ if (($_SESSION['ROLE'] ?? '') !== 'user') {
+     http_response_code(403);
+     exit('Access denied.');
+ }
+-require_once __DIR__ . '/../../includes/header.php';
+-?>
+-<main class="container py-4">
+-    <h1>This is User</h1>
+-    <p>Welcome, <?= htmlspecialchars($_SESSION['FULLNAME'], ENT_QUOTES, 'UTF-8') ?>.</p>
+-    <p>Username: <?= htmlspecialchars($_SESSION['USERNAME'], ENT_QUOTES, 'UTF-8') ?></p>
+-    <a class="btn btn-primary" href="<?= BASE_URL ?>/dashboard.php">View dashboard</a>
+-</main>
+-</body>
+-</html>
++require_once __DIR__ . '/../../includes/dashboard.php';

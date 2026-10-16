@@ -54,61 +54,37 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <!doctype html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>SMART SLOPE</title>
-  <link rel="stylesheet" href="<?=BASE_URL?>/assets/css/bootstrap.min.css">
-  <script src="<?=BASE_URL?>/assets/js/bootstrap.bundle.min.js" defer></script>
+    <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Welcome | SmartSlope</title>
+    <link rel="stylesheet" href="<?= BASE_URL ?>/assets/css/bootstrap.min.css">
+    <link rel="stylesheet" href="<?= BASE_URL ?>/assets/css/style.css">
 </head>
 <body>
-    <main class="container py-4" style="text-align:center;">
-        <h1>SMART SLOPE</h1>
-        <?php if ($error !== ''): ?>
-            <p class="alert alert-danger" role="alert"><?= htmlspecialchars($error, ENT_QUOTES, 'UTF-8') ?></p>
-        <?php endif; ?>
-        <?php if ($success !== ''): ?>
-            <p class="alert alert-success" role="status"><?= htmlspecialchars($success, ENT_QUOTES, 'UTF-8') ?></p>
-        <?php endif; ?>
-        <center>
-
-        
-            <div class="card " style="border:1px solid; width:300px;height:100%" >
-                <div class="card-header">
-                    <h2>Login</h2>
-                </div>
-                <div class="card-body">
-                    <form action="" method="post">
-                        <label for="">User Name</label><br>
-                        <input type="text" name="username" class="form-control" required><br>
-                        <label for="">Password</label><br>
-                        <input type="password" name="password" class="form-control" required><br>
-                        <button type="submit" class="btn btn-primary" name="login">Login</button>
-                    </form>
-
-                </div>
-                <div class="card-footer">
-                    <h2>Register</h2>
-                </div>
-                <div class="card-body" style="margin: 10px;padding:5px">
-                    <form action="" method="post">
-                        <label for="">User Name</label><br>
-                        <input type="text" name="username" class="form-control" required><br>
-                        <label for="">Full Name</label><br>
-                        <input type="text" name="full_name" class="form-control" required><br>
-                        <label for="">Email</label><br>
-                        <input type="email" name="email" class="form-control" required><br>
-                        <label for="">Contact</label><br>
-                        <input type="text" name="contact" class="form-control" required><br>
-                        <label for="">Password</label><br>
-                        <input type="password" name="password" class="form-control" required><br>
-                        <button type="submit" class="btn btn-primary" name="register">Register</button>
-                    </form>
-                    <hr>
-
-                </div>
-        
-            </div>
-        </center>
-    </main>
+<main class="auth-shell">
+    <div class="auth-intro"><span class="brand-mark" aria-hidden="true">SS</span><h1>SmartSlope</h1><p class="page-subtitle">Landslide awareness for Barangay Irisan</p></div>
+    <?php if ($error !== ''): ?><p class="alert alert-danger" role="alert"><?= htmlspecialchars($error, ENT_QUOTES, 'UTF-8') ?></p><?php endif; ?>
+    <?php if ($success !== ''): ?><p class="alert alert-success" role="status"><?= htmlspecialchars($success, ENT_QUOTES, 'UTF-8') ?></p><?php endif; ?>
+    <div class="card auth-card">
+        <section class="card-body"><h2>Welcome back</h2><p class="text-muted small mb-4">Sign in to view your community dashboard.</p>
+            <form method="post">
+                <div class="form-floating mb-3"><input id="login-username" name="username" class="form-control" placeholder="Username" autocomplete="username" required><label for="login-username">Username</label></div>
+                <div class="form-floating mb-3"><input id="login-password" type="password" name="password" class="form-control" placeholder="Password" autocomplete="current-password" required><label for="login-password">Password</label></div>
+                <button type="submit" name="login" class="btn btn-primary w-100">Login</button>
+            </form>
+        </section>
+        <section class="card-body auth-register"><h2>Join your community</h2><p class="text-muted small mb-4">Create a resident account.</p>
+            <form method="post">
+                <div class="form-floating mb-3"><input id="register-username" type="text" name="username" class="form-control" placeholder="Username" autocomplete="username" maxlength="50" required><label for="register-username">Username</label></div>
+                <div class="form-floating mb-3"><input id="register-full_name" type="text" name="full_name" class="form-control" placeholder="Full name" autocomplete="name" maxlength="100" required><label for="register-full_name">Full name</label></div>
+                <div class="form-floating mb-3"><input id="register-email" type="email" name="email" class="form-control" placeholder="Email address" autocomplete="email" maxlength="254" required><label for="register-email">Email address</label></div>
+                <div class="form-floating mb-3"><input id="register-contact" type="tel" name="contact" class="form-control" placeholder="Contact number" autocomplete="tel" maxlength="20" required><label for="register-contact">Contact number</label></div>
+                <div class="form-floating mb-3"><input id="register-password" type="password" name="password" class="form-control" placeholder="Password" autocomplete="new-password" maxlength="72" required><label for="register-password">Password</label></div>
+                <p class="small text-muted">Use a password of 8–72 bytes.</p>
+                <button type="submit" name="register" class="btn btn-outline-primary w-100">Create account</button>
+            </form>
+        </section>
+    </div>
+    <p class="prototype-note text-center mt-4">Academic prototype · Not an official warning service</p>
+</main>
 </body>
 </html>

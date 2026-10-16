@@ -1,9 +1,32 @@
-# SmartSlope — Phase 1
+# SmartSlope — Phase 2
 
-Foundation and authentication for the `project1` layout. This phase implements
-registration, username/password login, logout, role checks, and a shared PDO
-connection. Map, weather, risk assessment, CSV, and management workflows are
-later phases; their existing buttons and placeholders are not complete features.
+Separate administrator and resident dashboards with a shared green-and-brown
+Bootstrap theme. Login, registration, logout, and role checks from Phase 1 remain
+in place. No database schema or local configuration changes are required.
+
+## Phase 2 screens
+
+- Admins open `users/admin/admin.php`: active-location totals, saved reading
+  counts, recent weather readings, and a private pending-report list.
+- Residents open `users/user/user.php`: community readings and their own report
+  count. Other residents' report/contact details are not sent to the browser.
+- `dashboard.php` redirects to the appropriate dashboard and preserves valid
+  `dialog_id` reading-detail bookmarks.
+- `readings.php` lists all non-archived saved readings, newest first, with working
+  detail links. Dashboards show the five most recent readings.
+- Shared PHP sections in `includes/` keep dashboard and reading-table HTML in one
+  place. Navigation supports Bootstrap's mobile offcanvas menu.
+- Login and registration stay together in one column with floating labels.
+- Map selection, live risk assessment, management actions, report submission,
+  and CSV are still later phases. The screens clearly identify unavailable
+  components instead of showing buttons that pretend to perform those actions.
+- Displayed dates are explicitly labeled UTC; high/medium totals count saved
+  observations and must not be interpreted as current location risk.
+
+Phase 2 checks: repeat Phase 1 authentication checks below, open both dashboards,
+open a reading detail and close it, follow View all, and try the mobile navigation.
+Verify empty tables and multiple saved readings. Confirm a resident sees only
+his or her own report count and no administrator report table.
 
 ## Database
 

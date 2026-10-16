@@ -1,74 +1,53 @@
 <?php
 require_once __DIR__ . '/db.php';
-class event extends db{
-  public function get_total_locations(){
-      $sql = "SELECT * FROM locations WHERE active = 1";
-      $smtm = $this->connect()->query($sql);
-      
-      $count = $smtm->fetchAll(PDO::FETCH_ASSOC);
-      $total = count($count);
-      return $total;
 
-  }
-  public function get_pending_reports_total(){
-    $sql = "SELECT * FROM events WHERE type = 'report' AND status = 'pending' ";
-      $smtm = $this->connect()->query($sql);
-      
-      $count = $smtm->fetchAll(PDO::FETCH_ASSOC);
-      $total = count($count);
-      return $total;
-  }
-  public function get_high_risk(){
-    $sql = "SELECT * FROM events WHERE type = 'reading' AND archived = 0 AND risk_level = 'high' ";
-      $smtm = $this->connect()->query($sql);
-      
-      $count = $smtm->fetchAll(PDO::FETCH_ASSOC);
-      $total = count($count);
-      return $total;
-  }
-  public function get_med_risk(){
-    $sql = "SELECT * FROM events WHERE type = 'reading' AND archived = 0 AND risk_level = 'medium' ";
-      $smtm = $this->connect()->query($sql);
-      
-      $count = $smtm->fetchAll(PDO::FETCH_ASSOC);
-      $total = count($count);
-      return $total;
-  }
-  public function get_readings(){
-    $sql = "SELECT events.*, locations.name FROM events INNER JOIN locations ON events.location_id = locations.id WHERE events.type = 'reading' AND events.archived = 0";
-    $readings = $this->connect()->query($sql)->fetchAll(PDO::FETCH_ASSOC);
-    return $readings;
+class event extends db {
+    public function get_total_locations() {
+        return (int) $this->connect()->query('SELECT COUNT(*) FROM locations WHERE active = 1')->fetchColumn();
+    }
 
-  }
-  public function get_dialog($id){
-    $stmt = $this->connect()->prepare(
-    "SELECT events.*, locations.name FROM events INNER JOIN locations ON events.location_id = locations.id WHERE events.type = 'reading' AND events.archived = 0 AND events.id = ?");
+    public function get_pending_reports_total() {
+        return (int) $this->connect()->query("SELECT COUNT(*) FROM events WHERE type = 'report' AND status = 'pending'")->fetchColumn();
+    }
 
-    $stmt->execute([$id]);
+    public function get_high_risk() {
+        return (int) $this->connect()->query("SELECT COUNT(*) FROM events WHERE type = 'reading' AND archived = 0 AND risk_level = 'high'")->fetchColumn();
+    }
 
-    $reading = $stmt->fetch(PDO::FETCH_ASSOC);
-    return $reading;
-  }
+    public function get_med_risk() {
+        return (int) $this->connect()->query("SELECT COUNT(*) FROM events WHERE type = 'reading' AND archived = 0 AND risk_level = 'medium'")->fetchColumn();
+    }
 
-  function risk_color($risk){
-    if($risk === 'low') return "<td class='text text-success'>LOW</td>";
-    if($risk === 'normal') return "<td class='text text-primsry'>NORMAL</td>";
-    if($risk === 'medium') return "<td class='text text-warning'>MEDIUM</td>";
-    if($risk === 'high') return "<td class='text text-danger'>HIGH</td>";
-    if($risk === 'unknown') return "<td class='text text-inverse'>UNKNOWN</td>";
-    if($risk === 'unavailable') return "<td class='text text-inverse'>UNAVAILABLE</td>";
-  
+    public function get_readings() {
+        $sql = "SELECT events.*, locations.name FROM events
+            INNER JOIN locations ON events.location_id = locations.id
+            WHERE events.type = 'reading' AND events.archived = 0
+            ORDER BY events.observed_at DESC, events.id DESC";
+        return $this->connect()->query($sql)->fetchAll();
+    }
+
+    public function get_dialog($id) {
+        $stmt = $this->connect()->prepare("SELECT events.*, locations.name FROM events
+            INNER JOIN locations ON events.location_id = locations.id
+            WHERE events.type = 'reading' AND events.archived = 0 AND events.id = ?");
+        $stmt->execute([$id]);
+        return $stmt->fetch();
+    }
+
+    public function get_user_report_count($user_id) {
+        $stmt = $this->connect()->prepare("SELECT COUNT(*) FROM events WHERE type = 'report' AND user_id = ?");
+        $stmt->execute([$user_id]);
+        return (int) $stmt->fetchColumn();
+    }
+
+    public function get_pending_reports() {
+        $sql = "SELECT locations.name AS location_name, users.full_name AS reporter,
+            COALESCE(events.contact_phone, users.phone) AS contact,
+            events.status AS report_status, events.created_at AS report_date
+            FROM events INNER JOIN locations ON events.location_id = locations.id
+            LEFT JOIN users ON events.user_id = users.id
+            WHERE events.type = 'report' AND events.status = 'pending'
+            ORDER BY events.created_at DESC, events.id DESC";
+        return $this->connect()->query($sql)->fetchAll();
+    }
 }
-
-function get_pending_reports(){
-  $sql = "SELECT locations.name AS location_name, users.full_name AS reporter, users.phone AS contact, events.status AS report_status, events.created_at AS report_date FROM events INNER JOIN locations INNER JOIN users ON events.location_id = locations.id AND events.user_id = users.id WHERE events.type = 'report' AND events.status = 'pending' ";
-  $reports = $this->connect()->query($sql)->fetchAll(PDO::FETCH_ASSOC);
-  return $reports;
-}
-
-
-}
-
-
-
-?>
