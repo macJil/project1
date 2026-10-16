@@ -68,7 +68,13 @@ if (mapElement) {
                     if (editing || reporting) {
                         document.getElementById('lat').value = lat.toFixed(6);
                         document.getElementById('lng').value = lng.toFixed(6);
-                        if (reporting) document.getElementById('report-location').value = place ? place.id : '';
+                        if (reporting) {
+                            document.getElementById('report-location').value = place ? place.id : '';
+                            const addressField = document.getElementById('report-address');
+                            if (refresh || !addressField.value) addressField.value = place
+                                ? (place.address_label || place.name)
+                                : 'Barangay Irisan, Baguio City, Philippines — detailed address unavailable.';
+                        }
                     } else {
                         openLocation.hidden = !place;
                         if (place) openLocation.href = '?location_id=' + place.id;
@@ -103,6 +109,7 @@ if (mapElement) {
                         if (request !== addressRequest) return; // Ignore a slower result for an older click.
                         if (response.ok && data.address) {
                             address = data.address;
+                            if (reporting) document.getElementById('report-address').value = address;
                             selection.textContent = address + ' · ' + lat.toFixed(6) + ', ' + lng.toFixed(6);
                             if (editing && !place && nameInput.value === oldName) {
                                 nameInput.value = data.name;
@@ -151,6 +158,8 @@ if (mapElement) {
                         else {
                             addressRequest++;
                             document.getElementById('submit-report').disabled = false;
+                            document.getElementById('report-address').value = '';
+                            document.getElementById('address-status').textContent = 'Choose a saved location or click inside Irisan.';
                             document.getElementById('lat').value = '';
                             document.getElementById('lng').value = '';
                             if (chosenMarker) map.removeLayer(chosenMarker);

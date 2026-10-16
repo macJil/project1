@@ -91,6 +91,16 @@ try {
     http_response_code(503);
     $error = 'Report data is unavailable. Please try again later.';
 }
+// Keep the chosen point visible after a form validation error as well.
+$selectedAddress = '';
+if ($selectedLocation && $selectedLocation['active']) {
+    $form['lat'] = $selectedLocation['lat'];
+    $form['lng'] = $selectedLocation['lng'];
+    $selectedAddress = $selectedLocation['address_label'];
+} elseif (is_numeric($form['lat']) && is_numeric($form['lng']) && inside_irisan((float) $form['lat'], (float) $form['lng'])) {
+    $selectedAddress = $_SESSION['map_addresses'][address_key($form['lat'], $form['lng'])]['address']
+        ?? 'Barangay Irisan, Baguio City, Philippines — detailed address unavailable.';
+}
 require_once __DIR__ . '/../../includes/header.php';
 ?>
 <main class="page-shell">
@@ -101,11 +111,22 @@ require_once __DIR__ . '/../../includes/header.php';
         <div class="col-lg-6"><section class="card"><div class="card-header"><h2>Report location</h2></div><?php require __DIR__ . '/../../includes/location-map.php'; ?></section></div>
         <div class="col-lg-6"><section class="card"><div class="card-body">
             <form method="post" action="<?= BASE_URL ?>/users/user/submit_report.php">
-                <input type="hidden" id="lat" name="lat" value="<?= htmlspecialchars($form['lat'], ENT_QUOTES, 'UTF-8') ?>">
-                <input type="hidden" id="lng" name="lng" value="<?= htmlspecialchars($form['lng'], ENT_QUOTES, 'UTF-8') ?>">
                 <div class="form-floating mb-3"><select id="report-location" name="location_id" class="form-select"><option value="">Choose on the map or select a saved location</option>
                     <?php foreach ($locations as $place): ?><option value="<?= (int) $place['id'] ?>" <?= (string) $form['location_id'] === (string) $place['id'] ? 'selected' : '' ?>><?= htmlspecialchars($place['address_label'], ENT_QUOTES, 'UTF-8') ?></option><?php endforeach; ?>
                 </select><label for="report-location">Saved location</label></div>
+                <div class="mb-3">
+                    <label for="report-address" class="form-label">Selected address</label>
+                    <textarea id="report-address" class="form-control" rows="3" readonly placeholder="Click the map or choose a saved location" aria-live="polite"><?= htmlspecialchars($selectedAddress, ENT_QUOTES, 'UTF-8') ?></textarea>
+                    <p class="form-text">Mapped address when available. Detailed lookup needs internet; coordinates identify the exact selected point.</p>
+                </div>
+                <div class="row g-2 mb-3">
+                    <?php foreach (['lat' => 'Latitude', 'lng' => 'Longitude'] as $field => $label): ?>
+                    <div class="col-sm-6"><div class="form-floating">
+                        <input type="text" class="form-control" id="<?= $field ?>" name="<?= $field ?>" readonly placeholder="<?= $label ?>" value="<?= htmlspecialchars($form[$field], ENT_QUOTES, 'UTF-8') ?>">
+                        <label for="<?= $field ?>"><?= $label ?></label>
+                    </div></div>
+                    <?php endforeach; ?>
+                </div>
                 <div class="form-floating mb-3"><select id="report-type" name="report_type" class="form-select" required><?php foreach ($types as $value => $label): ?><option value="<?= $value ?>" <?= $form['report_type'] === $value ? 'selected' : '' ?>><?= $label ?></option><?php endforeach; ?></select><label for="report-type">Observation type</label></div>
                 <div class="form-floating mb-3"><textarea class="form-control" id="message" name="message" placeholder="Observation" style="height:130px" maxlength="5000" required><?= htmlspecialchars($form['message'], ENT_QUOTES, 'UTF-8') ?></textarea><label for="message">What did you observe?</label></div>
                 <div class="form-floating mb-3"><input class="form-control" type="datetime-local" id="occurred-at" name="occurred_at" value="<?= htmlspecialchars($form['occurred_at'], ENT_QUOTES, 'UTF-8') ?>" required><label for="occurred-at">Observed at (Manila time)</label></div>
