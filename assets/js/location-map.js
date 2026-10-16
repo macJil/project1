@@ -5,7 +5,8 @@ if (mapElement) {
     const selection = document.getElementById('map-selection');
     const openLocation = document.getElementById('open-location');
     const base = mapElement.dataset.base;
-    const locations = JSON.parse(document.getElementById('map-locations').textContent);
+    const locations = JSON.parse(document.getElementById('map-locations').textContent).filter(place => Number(place.active) === 1);
+    const riskColors = {low: '#285333', normal: '#284d69', medium: '#b07812', high: '#8d3029'};
     const editing = mapElement.dataset.mode === 'edit';
     const reporting = mapElement.dataset.mode === 'report';
     let chosenMarker;
@@ -60,7 +61,7 @@ if (mapElement) {
                         return;
                     }
                     if (chosenMarker) map.removeLayer(chosenMarker);
-                    chosenMarker = L.circleMarker([lat, lng], {bubblingMouseEvents: false, radius: 9, color: '#705139', fillColor: '#e8c47a', fillOpacity: 1}).addTo(map);
+                    chosenMarker = L.circleMarker([lat, lng], {bubblingMouseEvents: false, radius: 9, color: place ? (riskColors[place.risk_level] || '#566151') : '#705139', fillColor: place ? (riskColors[place.risk_level] || '#566151') : '#e8c47a', fillOpacity: 1}).addTo(map);
                     const request = ++addressRequest;
                     selection.textContent = (place ? (place.address_label || place.name) : 'Barangay Irisan, Baguio City, Philippines')
                         + ' · ' + lat.toFixed(6) + ', ' + lng.toFixed(6);
@@ -83,14 +84,18 @@ if (mapElement) {
                     const addressStatus = document.getElementById('address-status');
                     if (addressStatus) addressStatus.textContent = 'Looking up the mapped address…';
                     const nameInput = editing ? document.getElementById('name') : null;
-                    const landmarkInput = editing ? document.getElementById('landmark') : null;
+
                     if (editing) {
                         nameInput.value = place ? place.name : 'Irisan location ' + lat.toFixed(6) + ', ' + lng.toFixed(6);
-                        landmarkInput.value = place ? (place.landmark || '') : '';
+                        document.getElementById('location-id').value = place ? place.id : 0;
+                        document.getElementById('manage-location').value = place ? place.id : '';
+                        document.getElementById('location-form-title').textContent = place ? 'Edit location' : 'Add location';
                         document.getElementById('purok').value = place ? (place.purok || '') : '';
                     }
                     const oldName = nameInput ? nameInput.value : '';
-                    const oldLandmark = landmarkInput ? landmarkInput.value : '';
+
+                    const saveButton = document.getElementById('save-location') || document.getElementById('submit-report');
+                    if (saveButton) saveButton.disabled = true;
                     let address = '';
                     try {
                         const response = await fetch(base + '/api/address.php?' + new URLSearchParams({lat: lat.toFixed(6), lng: lng.toFixed(6)}));
@@ -99,13 +104,13 @@ if (mapElement) {
                         if (response.ok && data.address) {
                             address = data.address;
                             selection.textContent = address + ' · ' + lat.toFixed(6) + ', ' + lng.toFixed(6);
-                            if (editing && nameInput.value === oldName && landmarkInput.value === oldLandmark) {
+                            if (editing && !place && nameInput.value === oldName) {
                                 nameInput.value = data.name;
-                                landmarkInput.value = address;
                             }
                         }
                     } catch (error) { /* Offline: retain the selected coordinates and saved label. */ }
                     if (request !== addressRequest) return;
+                    if (saveButton) saveButton.disabled = false;
                     if (addressStatus) addressStatus.textContent = address
                         ? 'Approximate mapped address · OpenStreetMap / Photon. Check house and street details.'
                         : 'Detailed address unavailable. Saved labels and coordinates remain usable.';
@@ -121,12 +126,21 @@ if (mapElement) {
                     const lat = Number(place.lat), lng = Number(place.lng);
                     if (!Number.isFinite(lat) || !Number.isFinite(lng) || !insideIrisan(lat, lng, points)) return;
                     const label = document.createElement('span');
-                    label.textContent = place.address_label || place.name;
-                    L.circleMarker([lat, lng], {bubblingMouseEvents: false, radius: 6, color: '#205b43', fillOpacity: 0.8})
+                    label.textContent = (place.address_label || place.name) + ' · Saved risk: ' + (place.risk_level || 'no reading');
+                    L.circleMarker([lat, lng], {bubblingMouseEvents: false, radius: 6, color: riskColors[place.risk_level] || '#566151', fillColor: riskColors[place.risk_level] || '#566151', fillOpacity: 0.8})
                         .addTo(map).bindTooltip(label).on('click', () => selectPoint(lat, lng, place, true));
                     if (!editing && place.id == mapElement.dataset.selected) selectPoint(lat, lng, place);
                 });
-                if (editing || (reporting && !document.getElementById('report-location').value)) {
+                if (editing) {
+                    const saved = locations.find(place => String(place.id) === document.getElementById('location-id').value);
+                    if (saved) selectPoint(Number(saved.lat), Number(saved.lng), saved);
+                    document.getElementById('manage-location').addEventListener('change', event => {
+                        const place = locations.find(item => String(item.id) === event.target.value);
+                        if (place) selectPoint(Number(place.lat), Number(place.lng), place, true);
+                        else window.location.href = base + '/users/admin/admin_panel.php';
+                    });
+                }
+                if ((editing && document.getElementById('location-id').value === '0') || (reporting && !document.getElementById('report-location').value)) {
                     const lat = document.getElementById('lat').value, lng = document.getElementById('lng').value;
                     if (lat !== '' && lng !== '') selectPoint(Number(lat), Number(lng));
                 }
@@ -136,6 +150,7 @@ if (mapElement) {
                         if (place) selectPoint(Number(place.lat), Number(place.lng), place, true);
                         else {
                             addressRequest++;
+                            document.getElementById('submit-report').disabled = false;
                             document.getElementById('lat').value = '';
                             document.getElementById('lng').value = '';
                             if (chosenMarker) map.removeLayer(chosenMarker);
@@ -143,7 +158,11 @@ if (mapElement) {
                         }
                     });
                 }
-                map.on('click', event => selectPoint(event.latlng.lat, event.latlng.lng, null, true));
+                map.on('click', event => {
+                    const lat = Number(event.latlng.lat.toFixed(6)), lng = Number(event.latlng.lng.toFixed(6));
+                    const place = locations.find(item => Number(item.lat) === lat && Number(item.lng) === lng);
+                    selectPoint(lat, lng, place || null, true);
+                });
             })
             .catch(() => {
                 status.textContent = 'The local map could not load. Check assets/map/irisan.geojson and reload the page.';

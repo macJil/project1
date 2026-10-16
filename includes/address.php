@@ -3,7 +3,7 @@ require_once __DIR__ . '/map-boundary.php';
 // Reuse the existing name, purok and landmark columns; no schema change.
 function location_label($place) {
     $landmark = trim($place['landmark'] ?? '');
-    if (stripos($landmark, 'Baguio') !== false && stripos($landmark, 'Philippines') !== false) return $landmark;
+    if (stripos($landmark, 'Baguio') !== false && stripos($landmark, 'Philippines') !== false) return implode(', ', array_filter([$place['purok'] ?? '', $landmark]));
     $parts = array_filter([$place['name'] ?? '', $landmark, $place['purok'] ?? '']);
     $label = implode(', ', array_unique($parts));
     if (stripos($label, 'Irisan') === false) $label .= ', Barangay Irisan';

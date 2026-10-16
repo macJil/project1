@@ -13,7 +13,10 @@ class reports extends db {
         $sql = "SELECT events.id, events.location_id, events.user_id, events.message,
             events.contact_phone, events.contact_email, events.house_landmark,
             events.report_type, events.occurred_at, events.created_at, events.status,
-            events.reviewed_at, events.provider_payload, locations.name, locations.purok, locations.landmark, locations.lat, locations.lng, users.full_name AS reporter
+            events.reviewed_at, events.provider_payload,
+            (SELECT risk_level FROM events AS reading WHERE reading.location_id = locations.id
+                AND reading.type = 'reading' AND reading.archived = 0
+                ORDER BY reading.observed_at DESC, reading.id DESC LIMIT 1) AS risk_level, locations.name, locations.purok, locations.landmark, locations.lat, locations.lng, users.full_name AS reporter
             FROM events JOIN locations ON locations.id = events.location_id
             LEFT JOIN users ON users.id = events.user_id WHERE events.type = 'report'";
         $params = [];

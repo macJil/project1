@@ -20,7 +20,7 @@ $activePage = $activePage ?? '';
     <?php if (!empty($showMap)): ?>
     <link rel="stylesheet" href="<?= BASE_URL ?>/assets/vendor/leaflet/leaflet.css">
     <script src="<?= BASE_URL ?>/assets/vendor/leaflet/leaflet.js" defer></script>
-    <script src="<?= BASE_URL ?>/assets/js/location-map.js" defer></script>
+    <script src="<?= BASE_URL ?>/assets/js/location-map.js?v=p5-map-fixes" defer></script>
     <?php endif; ?>
 </head>
 <body>

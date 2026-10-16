@@ -28,16 +28,21 @@ try {
             $error = 'Location not found.';
         } elseif ($action === 'save') {
             $form['id'] = $id;
-            foreach (['name', 'purok', 'landmark', 'lat', 'lng'] as $field) {
+            foreach (['name', 'purok', 'lat', 'lng'] as $field) {
                 $form[$field] = trim((string) filter_input(INPUT_POST, $field));
             }
             $lat = filter_var($form['lat'], FILTER_VALIDATE_FLOAT);
             $lng = filter_var($form['lng'], FILTER_VALIDATE_FLOAT);
-            if ($form['name'] === '' || $form['name'] !== address_text($form['name'], 150) || $form['purok'] !== address_text($form['purok'], 100) || $form['landmark'] !== address_text($form['landmark'], 255)) {
+            if ($form['name'] === '' || $form['name'] !== address_text($form['name'], 150) || $form['purok'] !== address_text($form['purok'], 100)) {
                 $error = 'Enter a location name and keep each field within its length limit.';
             } elseif ($lat === false || $lng === false || !inside_irisan(round($lat, 6), round($lng, 6))) {
                 $error = 'Choose valid coordinates inside the Irisan boundary.';
             } else {
+                // Address comes from the selected coordinates, not an editable address field.
+                $saved = $id ? $location->get_location($id) : null;
+                $samePoint = $saved && (float) $saved['lat'] === round($lat, 6) && (float) $saved['lng'] === round($lng, 6);
+                $cached = $_SESSION['map_addresses'][address_key($lat, $lng)] ?? null;
+                $form['landmark'] = $cached['address'] ?? ($samePoint ? $saved['landmark'] : '');
                 $location->save_location($id, $form['name'], $form['purok'], $form['landmark'], round($lat, 6), round($lng, 6));
                 $_SESSION['location_notice'] = 'Location saved.';
             }
@@ -77,30 +82,37 @@ require_once __DIR__ . '/../../includes/header.php';
     <nav class="d-flex flex-wrap gap-2 mb-4" aria-label="Management sections"><a class="btn btn-primary" href="<?= BASE_URL ?>/users/admin/reports.php">Review reports</a><a class="btn btn-outline-primary" href="<?= BASE_URL ?>/readings.php">Manage readings</a></nav>
     <?php if ($notice): ?><p class="alert alert-success" role="status"><?= htmlspecialchars($notice, ENT_QUOTES, 'UTF-8') ?></p><?php endif; ?>
     <?php if ($error): ?><p class="alert alert-danger" role="alert"><?= htmlspecialchars($error, ENT_QUOTES, 'UTF-8') ?></p><?php endif; ?>
+    <label for="manage-location" class="form-label">Choose an active saved location, or click the map to add one</label>
+    <select id="manage-location" class="form-select mb-3">
+        <option value="">New location — click the map</option>
+        <?php foreach ($locations as $place): if (!$place['active']) continue; ?>
+        <option value="<?= (int) $place['id'] ?>" <?= $form['id'] == $place['id'] ? 'selected' : '' ?>><?= htmlspecialchars($place['address_label'], ENT_QUOTES, 'UTF-8') ?></option>
+        <?php endforeach; ?>
+    </select>
     <div class="row g-4 mb-4">
         <div class="col-lg-7"><section class="card"><div class="card-header"><h2>Irisan location picker</h2></div><?php require __DIR__ . '/../../includes/location-map.php'; ?></section></div>
-        <div class="col-lg-5"><section class="card"><div class="card-header"><h2><?= $form['id'] ? 'Edit location' : 'Add location' ?></h2></div><div class="card-body">
+        <div class="col-lg-5"><section class="card"><div class="card-header"><h2 id="location-form-title"><?= $form['id'] ? 'Edit location' : 'Add location' ?></h2></div><div class="card-body">
             <form method="post" action="<?= BASE_URL ?>/users/admin/admin_panel.php">
                 <input type="hidden" name="action" value="save">
-                <input type="hidden" name="id" value="<?= (int) $form['id'] ?>">
-                <?php foreach (['name' => 'Location name', 'purok' => 'Purok (optional)', 'landmark' => 'Full address / landmark'] as $field => $label): ?>
-                <div class="form-floating mb-3"><input class="form-control" id="<?= $field ?>" name="<?= $field ?>" placeholder="<?= $label ?>" maxlength="<?= $field === 'name' ? 150 : ($field === 'purok' ? 100 : 255) ?>" value="<?= htmlspecialchars($form[$field] ?? '', ENT_QUOTES, 'UTF-8') ?>" <?= $field === 'name' ? 'required' : '' ?>><label for="<?= $field ?>"><?= $label ?></label></div>
+                <input type="hidden" id="location-id" name="id" value="<?= (int) $form['id'] ?>">
+                <?php foreach (['name' => 'Location name', 'purok' => 'House no. / more location info (optional)'] as $field => $label): ?>
+                <div class="form-floating mb-3"><input class="form-control" id="<?= $field ?>" name="<?= $field ?>" placeholder="<?= $label ?>" maxlength="<?= $field === 'name' ? 150 : 100 ?>" value="<?= htmlspecialchars($form[$field] ?? '', ENT_QUOTES, 'UTF-8') ?>" <?= $field === 'name' ? 'required' : '' ?>><label for="<?= $field ?>"><?= $label ?></label></div>
                 <?php endforeach; ?>
                 <div class="row g-2">
                 <?php foreach (['lat' => 'Latitude', 'lng' => 'Longitude'] as $field => $label): ?>
                 <div class="col-sm-6"><div class="form-floating mb-3"><input class="form-control" type="number" step="0.000001" id="<?= $field ?>" name="<?= $field ?>" placeholder="<?= $label ?>" required value="<?= htmlspecialchars($form[$field] ?? '', ENT_QUOTES, 'UTF-8') ?>"><label for="<?= $field ?>"><?= $label ?></label></div></div>
                 <?php endforeach; ?>
                 </div>
-                <p class="small text-muted">Click the map to fill the mapped address when available. Check or correct the suggested name and full address before saving. New locations keep susceptibility as unknown.</p>
-                <div class="location-actions"><button class="btn btn-primary" type="submit">Save location</button><a class="btn btn-outline-secondary" href="<?= BASE_URL ?>/users/admin/admin_panel.php">Clear / cancel</a></div>
+                <p class="small text-muted">Choose an active saved location to edit it, or click a new map point to add a location. The mapped address appears below the map and is saved automatically when available. House details are optional. Inactive locations can be edited or reactivated in the table.</p>
+                <div class="location-actions"><button id="save-location" class="btn btn-primary" type="submit">Save location</button><a class="btn btn-outline-secondary" href="<?= BASE_URL ?>/users/admin/admin_panel.php">Clear / cancel</a></div>
             </form>
         </div></section></div>
     </div>
     <section class="card"><div class="card-header"><h2>All locations</h2></div><div class="table-responsive"><table class="table align-middle">
-        <thead><tr><th>Name</th><th>Purok / landmark</th><th>Coordinates</th><th>Status</th><th>Actions</th></tr></thead><tbody>
+        <thead><tr><th>Name</th><th>House no. / location info</th><th>Coordinates</th><th>Status</th><th>Actions</th></tr></thead><tbody>
         <?php foreach ($locations as $place): ?><tr>
             <td><?= htmlspecialchars($place['address_label'], ENT_QUOTES, 'UTF-8') ?></td>
-            <td><?= htmlspecialchars(implode(' · ', array_filter([$place['purok'], $place['landmark']])), ENT_QUOTES, 'UTF-8') ?></td>
+            <td><?= htmlspecialchars($place['purok'] ?? '', ENT_QUOTES, 'UTF-8') ?></td>
             <td><?= htmlspecialchars(($place['lat'] ?? '—') . ', ' . ($place['lng'] ?? '—'), ENT_QUOTES, 'UTF-8') ?></td>
             <td><?= $place['active'] ? 'Active' : 'Inactive' ?></td>
             <td><div class="location-actions"><a class="btn btn-sm btn-outline-primary" href="?edit=<?= (int) $place['id'] ?>">Edit</a>

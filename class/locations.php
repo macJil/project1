@@ -4,7 +4,10 @@ require_once __DIR__ . '/../includes/address.php';
 
 class location extends db {
     public function get_locations($active_only = true) {
-        $sql = 'SELECT * FROM locations';
+        // Markers use the latest unarchived saved reading, including admin overrides.
+        $sql = "SELECT locations.*, (SELECT risk_level FROM events
+            WHERE location_id = locations.id AND type = 'reading' AND archived = 0
+            ORDER BY observed_at DESC, id DESC LIMIT 1) AS risk_level FROM locations";
         if ($active_only) {
             $sql .= ' WHERE active = 1';
         }

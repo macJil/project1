@@ -244,10 +244,10 @@ Provider documentation: https://github.com/komoot/photon and its `docs/api-v1.md
 
 No new database columns are needed: short names remain in `locations.name`,
 resolved full addresses use `locations.landmark` (up to 255 characters), and
-`purok` remains available for corrections. The address helper formats existing
+`purok` stores the optional house number / extra location information. The address helper formats existing
 partial labels with Irisan/Baguio context. Existing manually entered landmarks
-are not silently overwritten. In Management, a map click fills the name and
-full-address fields; review them and press Save to persist your changes.
+are not silently overwritten. In Management, a map click displays the resolved address below the map and fills
+the name. Press Save to store it; there is no editable full-address input.
 
 Saved reading tables now say **Risk status**. Admin Edit reading includes Low,
 Normal, Medium, and High. The selected status is stored in `risk_level`; the
@@ -349,3 +349,36 @@ find . -name '*.php' -not -path './.git/*' -exec php -l {} \;
 Automated verification for this patch uses a disposable MariaDB database and
 real PHP HTTP requests at root and subfolder URLs. This does not replace a
 final check in your actual Herd and XAMPP installations.
+
+
+## p5 map and location corrections
+
+- Report dialogs have an explicit map height and initialize after opening. The
+  saved report point and local tiles load independently of the boundary overlay.
+  Reopening resizes the same map. Missing tiles or coordinates have a visible message.
+- Map colors use the latest unarchived saved reading: low green, normal blue,
+  medium amber, high red, and no reading grey. Editing that reading changes the
+  marker on the next page load. Historical reading edits do not replace a newer
+  reading. Report review status (pending/reviewed/resolved) is separate from risk.
+- Management offers an active saved-location dropdown. Choosing a marker or a
+  saved option edits that location. Clicking a new point starts a new location;
+  it does not silently move the previously selected location.
+- Full addresses appear automatically when the address service returns one;
+  the editable full-address input is removed. The optional house/details input
+  reuses `purok`. Existing addresses are retained when coordinates stay the same;
+  moving coordinates clears an old address unless a new lookup is available.
+- Inactive locations stay in the management table for reactivation but are
+  excluded from selection maps and dropdowns. Historical report maps retain the
+  original reported point, even when its linked location is later deactivated.
+- Residents can choose active saved locations or click a new point. Slow address
+  responses cannot replace a newer selection. Saving waits for the lookup to finish.
+
+No database import, migration, credentials change, or replacement tile download
+is needed. Detailed address lookup still needs internet and available mapped data;
+it cannot guarantee a house-level address for every point. Offline saved labels
+and coordinates remain usable.
+
+Verification: PHP syntax, JavaScript syntax, disposable MariaDB/HTTP tests at root
+and `/project1` URLs, and mocked map interaction tests. Check the View dialog,
+selection, and marker colors in your actual browser after applying the patch;
+these automated checks do not constitute a browser rendering test.

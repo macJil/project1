@@ -1,43 +1,45 @@
-// Initialize after Bootstrap shows the dialog, so Leaflet can measure its width.
-let reportBoundary;
-document.addEventListener('shown.bs.modal', async event => {
-    const element = event.target.querySelector('.report-map');
-    if (!element) return;
-    const status = event.target.querySelector('.report-map-status');
-    if (element.reportMap) {
-        element.reportMap.invalidateSize();
-        return;
-    }
-    if (element.dataset.lat === '' || element.dataset.lng === '' || typeof L === 'undefined') {
-        status.textContent = 'A map is unavailable for this older report. Check its written location details.';
-        return;
-    }
-    const lat = Number(element.dataset.lat), lng = Number(element.dataset.lng);
-    if (!Number.isFinite(lat) || !Number.isFinite(lng) || lat < -90 || lat > 90 || lng < -180 || lng > 180) {
-        status.textContent = 'This report has invalid map coordinates.';
-        return;
-    }
-    try {
-        if (!reportBoundary) reportBoundary = fetch(element.dataset.base + '/assets/map/irisan.geojson').then(response => {
-            if (!response.ok) throw new Error('Boundary unavailable');
-            return response.json();
-        });
-        const data = await reportBoundary;
-        if (element.reportMap) { element.reportMap.invalidateSize(); return; }
+// Each dialog gets its own map once Bootstrap has made it visible.
+document.querySelectorAll('.modal').forEach(dialog => {
+    dialog.addEventListener('shown.bs.modal', () => {
+        const element = dialog.querySelector('.report-map');
+        if (!element) return;
+        const status = dialog.querySelector('.report-map-status');
+        if (element.reportMap) {
+            element.reportMap.invalidateSize();
+            return;
+        }
+        const lat = Number(element.dataset.lat), lng = Number(element.dataset.lng);
+        if (element.dataset.lat === '' || element.dataset.lng === '' ||
+            !Number.isFinite(lat) || !Number.isFinite(lng) || Math.abs(lat) > 90 || Math.abs(lng) > 180) {
+            status.textContent = 'This older report has no valid coordinates. Check its written location details.';
+            return;
+        }
+        if (typeof L === 'undefined') {
+            status.textContent = 'Leaflet is missing. Check assets/vendor/leaflet/.';
+            return;
+        }
         const map = L.map(element, {minZoom: 12, maxZoom: 16, scrollWheelZoom: false});
         element.reportMap = map;
-        const boundary = L.geoJSON(data, {interactive: false, style: {color: '#705139', weight: 2, fillOpacity: 0.05}}).addTo(map);
-        const bounds = boundary.getBounds();
-        map.setMaxBounds(bounds.pad(0.2));
-        L.tileLayer(element.dataset.base + '/assets/map-tiles/{z}/{x}/{y}.png', {
-            minZoom: 12, maxZoom: 16, maxNativeZoom: 15, bounds: bounds, noWrap: true,
-            attribution: 'Map data © OpenStreetMap contributors · local tiles'
-        }).on('tileerror', () => { status.textContent = 'Some local tiles are missing. Report coordinates: ' + lat + ', ' + lng; }).addTo(map);
-        L.circleMarker([lat, lng], {radius: 8, color: '#705139', fillColor: '#e8c47a', fillOpacity: 1}).addTo(map);
+        // Show the saved report point immediately; a failed boundary request must not hide it.
         map.setView([lat, lng], 15);
-        map.invalidateSize();
-    } catch (error) {
-        reportBoundary = null;
-        status.textContent = 'Local map unavailable. Report coordinates: ' + lat + ', ' + lng;
-    }
+        L.tileLayer(element.dataset.base + '/assets/map-tiles/{z}/{x}/{y}.png', {
+            minZoom: 12, maxZoom: 16, maxNativeZoom: 15, noWrap: true,
+            attribution: 'Map data © OpenStreetMap contributors · local tiles'
+        }).on('tileerror', () => {
+            status.textContent = 'Some local tiles are missing. Report point: ' + lat + ', ' + lng;
+        }).addTo(map);
+        const colors = {low: '#285333', normal: '#284d69', medium: '#b07812', high: '#8d3029'};
+        const color = colors[element.dataset.risk] || '#566151';
+        L.circleMarker([lat, lng], {radius: 8, color: color, fillColor: color, fillOpacity: 1})
+            .addTo(map).bindTooltip('Reported location');
+        requestAnimationFrame(() => map.invalidateSize());
+        fetch(element.dataset.base + '/assets/map/irisan.geojson')
+            .then(response => {
+                if (!response.ok) throw new Error('Boundary unavailable');
+                return response.json();
+            })
+            .then(data => L.geoJSON(data, {interactive: false,
+                style: {color: '#705139', weight: 2, fillOpacity: 0.05}}).addTo(map))
+            .catch(() => { status.textContent += ' · Boundary unavailable; the report point is still shown.'; });
+    });
 });
