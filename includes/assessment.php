@@ -36,6 +36,6 @@ if (!isset($assessment) || empty($_SESSION['USER_ID'])) {
         <p class="small">Rainfall window end (UTC): <?= htmlspecialchars($latest['rainfall_window_end'] ?? 'Unavailable', ENT_QUOTES, 'UTF-8') ?></p>
         <?php endif; ?>
         </div>
-        <p class="prototype-note mb-0">API weather from <a href="https://open-meteo.com/">Open-Meteo</a>; calculated prototype category, not a measured landslide warning. Low does not mean safe. <a href="<?= BASE_URL ?>/methodology.php">Methodology</a></p>
+        <p class="prototype-note mb-0"><?= ($latest['source'] ?? '') === 'manual' ? 'Administrator-edited values; original observation time retained.' : 'API weather from <a href="https://open-meteo.com/">Open-Meteo</a>;' ?> calculated prototype category, not a measured landslide warning. Low does not mean safe. <a href="<?= BASE_URL ?>/methodology.php">Methodology</a></p>
     </div>
 </section>

@@ -16,7 +16,12 @@ if (!isset($readings)) {
                 <td><span class="risk-badge risk-<?= htmlspecialchars($reading['risk_level'] ?? 'unavailable', ENT_QUOTES, 'UTF-8') ?>"><?= htmlspecialchars($reading['risk_level'] ?? 'unavailable', ENT_QUOTES, 'UTF-8') ?></span></td>
                 <td><?= htmlspecialchars(($reading['rainfall_1h'] ?? '—') . ' / ' . ($reading['rainfall_24h'] ?? '—') . ' / ' . ($reading['rainfall_72h'] ?? '—'), ENT_QUOTES, 'UTF-8') ?></td>
                 <td><?= htmlspecialchars($reading['observed_at'] ?? 'Unavailable', ENT_QUOTES, 'UTF-8') ?></td>
-                <td><a class="btn btn-sm btn-outline-primary" href="?<?= isset($selectedLocation['id']) ? 'location_id=' . (int) $selectedLocation['id'] . '&amp;' : '' ?>dialog_id=<?= (int) $reading['id'] ?>#reading-details" aria-label="Details for reading <?= (int) $reading['id'] ?>">Details</a></td>
+                <td><a class="btn btn-sm btn-outline-primary" href="?<?= isset($selectedLocation['id']) ? 'location_id=' . (int) $selectedLocation['id'] . '&amp;' : '' ?>dialog_id=<?= (int) $reading['id'] ?>#reading-details" aria-label="Details for reading <?= (int) $reading['id'] ?>">Details</a>
+                    <?php if (($_SESSION['ROLE'] ?? '') === 'admin'): ?>
+                    <a class="btn btn-sm btn-outline-secondary" href="<?= BASE_URL ?>/users/admin/edit_reading.php?id=<?= (int) $reading['id'] ?>">Edit</a>
+                    <form class="d-inline" method="post" action="<?= BASE_URL ?>/readings.php" onsubmit="return confirm('Permanently delete this reading?');"><input type="hidden" name="id" value="<?= (int) $reading['id'] ?>"><input type="hidden" name="action" value="delete"><button class="btn btn-sm btn-outline-danger" type="submit">Delete</button></form>
+                    <?php endif; ?>
+                </td>
             </tr>
         <?php endforeach; ?>
         <?php if (!$readings): ?><tr><td colspan="5" class="empty-cell">No saved weather readings available.</td></tr><?php endif; ?>

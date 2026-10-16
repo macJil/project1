@@ -12,6 +12,8 @@ class db {
             self::$connection->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
             self::$connection->setAttribute(PDO::ATTR_DEFAULT_FETCH_MODE, PDO::FETCH_ASSOC);
             self::$connection->setAttribute(PDO::ATTR_EMULATE_PREPARES, false);
+            // TIMESTAMP columns are displayed consistently with the site's UTC labels.
+            self::$connection->exec("SET time_zone = '+00:00'");
         }
         return self::$connection;
     }

@@ -95,3 +95,9 @@ a:hover { color: #143e2c; }
 .leaflet-container { font-family: inherit; }
 .location-actions { display: flex; flex-wrap: wrap; gap: .5rem; }
 @media (max-width: 575px) { #location-map { height: 340px; } }
+
+/* Report text stays readable on narrow screens and in review dialogs. */
+.report-message { white-space: normal; overflow-wrap: anywhere; min-width: 180px; }
+.nav-pills .nav-link { color: #205b43; }
+.nav-pills .nav-link.active { background-color: #205b43; color: #fff; }
+.modal-content { border-color: #d9d6ca; }

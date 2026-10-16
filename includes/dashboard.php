@@ -81,7 +81,7 @@ require_once __DIR__ . '/header.php';
     </section>
     <?php if ($admin): ?>
         <section class="card" aria-labelledby="reports-title">
-            <div class="card-header d-flex align-items-center justify-content-between gap-2"><h2 id="reports-title">Pending reports</h2><a class="btn btn-sm btn-outline-secondary" href="<?= BASE_URL ?>/users/admin/admin_panel.php">Management</a></div>
+            <div class="card-header d-flex align-items-center justify-content-between gap-2"><h2 id="reports-title">Pending reports</h2><a class="btn btn-sm btn-outline-secondary" href="<?= BASE_URL ?>/users/admin/reports.php?status=pending">Review reports</a></div>
             <div class="table-responsive"><table class="table align-middle"><caption class="visually-hidden">Reports awaiting administrator review</caption><thead><tr><th scope="col">Location</th><th scope="col">Reporter</th><th scope="col">Contact</th><th scope="col">Submitted (UTC)</th><th scope="col">Status</th></tr></thead><tbody>
                 <?php foreach ($reports as $report): ?><tr>
                     <td><?= htmlspecialchars($report['location_name'], ENT_QUOTES, 'UTF-8') ?></td><td><?= htmlspecialchars($report['reporter'] ?? 'Former account', ENT_QUOTES, 'UTF-8') ?></td><td><?= htmlspecialchars($report['contact'] ?? 'Not provided', ENT_QUOTES, 'UTF-8') ?></td><td><?= htmlspecialchars($report['report_date'], ENT_QUOTES, 'UTF-8') ?></td><td><span class="risk-badge risk-medium">Pending</span></td>
@@ -90,7 +90,7 @@ require_once __DIR__ . '/header.php';
             </tbody></table></div>
         </section>
     <?php else: ?>
-        <section class="card action-card"><div class="card-body d-flex flex-wrap align-items-center justify-content-between gap-3"><div><h3>Notice something in your area?</h3><p class="mb-0 small">Ground reports help provide context alongside weather readings.</p></div><a class="btn btn-secondary" href="<?= BASE_URL ?>/users/user/submit_report.php">Ground reports</a></div></section>
+        <section class="card action-card"><div class="card-body d-flex flex-wrap align-items-center justify-content-between gap-3"><div><h3>Notice something in your area?</h3><p class="mb-0 small">Ground reports help provide context alongside weather readings.</p></div><a class="btn btn-secondary" href="<?= BASE_URL ?>/users/user/submit_report.php<?= $selectedLocation ? '?location_id=' . (int) $selectedLocation['id'] : '' ?>">Ground reports</a></div></section>
     <?php endif; ?>
 </main>
 <script src="<?= BASE_URL ?>/assets/js/weather.js" defer></script>

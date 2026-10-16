@@ -1,5 +1,6 @@
 <?php
 require_once __DIR__ . '/db.php';
+require_once __DIR__ . '/RiskAnalyzer.php';
 
 class weather_readings extends db {
     public function latest($location_id) {
@@ -24,5 +25,20 @@ class weather_readings extends db {
             $reading['observed_at'], $reading['rainfall_window_end'], $reading['rule_version'],
             $reading['provider_payload']]);
         return (int) $this->connect()->lastInsertId();
+    }
+    public function update($id, $values, $risk, $window_end, $admin_id) {
+        $stmt = $this->connect()->prepare("UPDATE events SET rainfall_1h = ?, rainfall_24h = ?, rainfall_72h = ?,
+            temperature = ?, humidity = ?, wind_speed = ?, risk_level = ?, rainfall_window_end = ?,
+            rule_version = ?, source = 'manual', adjustment_log = ?
+            WHERE id = ? AND type = 'reading' AND archived = 0");
+        $stmt->execute([$values['rainfall_1h'], $values['rainfall_24h'], $values['rainfall_72h'],
+            $values['temperature'], $values['humidity'], $values['wind_speed'], $risk, $window_end,
+            RiskAnalyzer::VERSION, json_encode(['edited_by' => $admin_id, 'edited_at_utc' => gmdate('Y-m-d H:i:s')]), $id]);
+    }
+
+    public function delete($id) {
+        $stmt = $this->connect()->prepare("DELETE FROM events WHERE id = ? AND type = 'reading'");
+        $stmt->execute([$id]);
+        return $stmt->rowCount() === 1;
     }
 }

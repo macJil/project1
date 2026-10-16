@@ -8,7 +8,7 @@ if (!isset($locations, $showMap) || empty($_SESSION['USER_ID'])) {
 <div class="map-caption">
     <p id="map-status" role="status" class="mb-2">Loading the local map…</p>
     <p id="map-selection" class="mb-2">Choose a saved location marker or click inside the Irisan boundary.</p>
-    <?php if (($mapMode ?? '') !== 'edit'): ?>
+    <?php if (!in_array($mapMode ?? '', ['edit', 'report'], true)): ?>
     <a id="open-location" class="btn btn-sm btn-primary" hidden>View saved readings here</a>
     <a class="btn btn-sm btn-outline-secondary" href="?">Show all recent readings</a>
     <?php endif; ?>

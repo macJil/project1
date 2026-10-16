@@ -1,4 +1,4 @@
-# SmartSlope — Phase 4
+# SmartSlope — Phase 5
 
 Separate administrator and resident dashboards with a shared green-and-brown
 Bootstrap theme. Login, registration, logout, and role checks from Phase 1 remain
@@ -18,7 +18,7 @@ in place. No database schema or local configuration changes are required.
   place. Navigation supports Bootstrap's mobile offcanvas menu.
 - Login and registration stay together in one column with floating labels.
 - Phase 3 adds offline map selection and admin location management. Phase 4 adds weather fetching and rainfall assessment.
-  Report submission/review, reading changes, and CSV remain later phases.
+  Phase 5 adds report submission/review and admin reading edits/deletion. CSV remains Phase 6.
 - Displayed dates are explicitly labeled UTC; high/medium totals count saved
   observations and must not be interpreted as current location risk.
 
@@ -150,7 +150,75 @@ Forecast/soil-moisture fields stay untouched and are not used by this phase.
    JSON. A logged-out request returns 401 JSON. POST is required to fetch/save.
 
 On a browser timeout the server may still finish saving: reload history before
-retrying. Report review, reading edits/deletion, and CSV remain subsequent phases.
+retrying. CSV remains Phase 6.
+
+## Phase 5: reports and management
+
+### Resident ground reports
+
+Open **Submit report**, choose a saved location or click within Irisan, and enter
+an observation type, description, and observation time. The time input is in
+**Asia/Manila** and is stored/displayed as UTC. Phone, email, and nearby landmark
+are optional; contact fields initially use the resident's account details.
+
+A successful submission creates a `report` event with the signed-in resident's
+ID and `pending` status. Submitted user IDs, roles, or status fields cannot
+change that assignment. A new map point creates a coordinate-based location only
+when the report is submitted; it does not call the weather provider. Existing
+inactive points are rejected. Reports work without internet while PHP/MySQL run.
+
+**Your reports** shows only the signed-in resident's history and current review
+status. Other residents' reports/contact details are not exposed. Reports are
+user observations, not verified hazard data or an emergency response channel.
+
+### Administrator report review
+
+Use **Management → Review reports** or the pending-report dashboard link.
+`users/admin/reports.php` provides All / Pending / Reviewed / Resolved filters.
+**View** opens a Bootstrap dialog with the report, contact details, and review
+status form. Save the selected status there. Reviewed/resolved records store the
+reviewing admin and review time; returning to pending clears those review fields.
+Resolved is an administrative workflow label, not a statement of physical safety.
+
+Delete report permanently removes that report after the browser confirmation.
+Only POST requests perform updates/deletions. Guests and resident accounts cannot
+access these pages or actions. No report action can modify a reading event.
+
+### Administrator reading management
+
+Admins see **Edit** and **Delete** beside saved readings on the dashboard and
+readings page. Edit opens `users/admin/edit_reading.php`, with rainfall totals,
+temperature, humidity, and wind. Rainfall totals must be nonnegative and consistent
+(1h ≤ 24h ≤ 72h); the prototype category is recalculated. Other weather values
+may be left blank when unavailable.
+
+Editing preserves the location, original observation timestamp, and original
+provider JSON. It labels the source `manual` and stores the most recent editor
+and edit time in `adjustment_log`. The displayed assessment identifies these as
+administrator-edited values. Editing does not make old observations fresh.
+Delete reading permanently removes that reading after the browser confirmation.
+Reading actions cannot modify report rows. Residents remain read-only here.
+
+The database connection sets its session timezone to UTC so `TIMESTAMP` fields
+match the UTC labels even if MySQL's server timezone is Asia/Manila. No schema,
+credentials, table, or existing-record migration is needed.
+
+### Phase 5 checks
+
+1. As resident, submit a report using a saved point, then another using a new map
+   point. Confirm the success message and your own history; reload without
+   submitting again to confirm there is no duplicate submission.
+2. Try a missing description, future observation time, invalid contact details,
+   and an outside-Irisan point. Expect a readable message and no report saved.
+3. As admin, open each status tab. View the new report, set Reviewed, then Resolved,
+   and confirm it moves to the correct tab. Verify the resident sees the new status.
+4. Log in as a different resident and confirm the first resident's history is absent.
+5. Edit a test reading. Confirm its category is recalculated, source is manual,
+   and timestamp remains unchanged. An old reading must stay outdated.
+6. Delete a disposable report and reading. Confirm each disappears, while the
+   corresponding location remains. Cancel the browser confirmation once as well.
+7. As resident, directly visit the admin review/edit URLs and try POST actions:
+   each must be denied. Check both desktop and mobile layouts and the View dialog.
 
 ## Database
 

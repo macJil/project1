@@ -7,6 +7,7 @@ if (mapElement) {
     const base = mapElement.dataset.base;
     const locations = JSON.parse(document.getElementById('map-locations').textContent);
     const editing = mapElement.dataset.mode === 'edit';
+    const reporting = mapElement.dataset.mode === 'report';
     let chosenMarker;
 
     // Same polygon-edge check as PHP; the server checks again before saving.
@@ -61,9 +62,10 @@ if (mapElement) {
                     chosenMarker = L.circleMarker([lat, lng], {bubblingMouseEvents: false, radius: 9, color: '#705139', fillColor: '#e8c47a', fillOpacity: 1}).addTo(map);
                     selection.textContent = (place ? [place.name, place.purok, place.landmark].filter(Boolean).join(' · ') : 'Selected coordinates')
                         + ' · ' + lat.toFixed(6) + ', ' + lng.toFixed(6);
-                    if (editing) {
+                    if (editing || reporting) {
                         document.getElementById('lat').value = lat.toFixed(6);
                         document.getElementById('lng').value = lng.toFixed(6);
+                        if (reporting) document.getElementById('report-location').value = place ? place.id : '';
                     } else {
                         openLocation.hidden = !place;
                         if (place) openLocation.href = '?location_id=' + place.id;
@@ -84,9 +86,21 @@ if (mapElement) {
                         .addTo(map).bindTooltip(label).on('click', () => selectPoint(lat, lng, place, true));
                     if (!editing && place.id == mapElement.dataset.selected) selectPoint(lat, lng, place);
                 });
-                if (editing) {
+                if (editing || (reporting && !document.getElementById('report-location').value)) {
                     const lat = document.getElementById('lat').value, lng = document.getElementById('lng').value;
                     if (lat !== '' && lng !== '') selectPoint(Number(lat), Number(lng));
+                }
+                if (reporting) {
+                    document.getElementById('report-location').addEventListener('change', event => {
+                        const place = locations.find(item => String(item.id) === event.target.value);
+                        if (place) selectPoint(Number(place.lat), Number(place.lng), place);
+                        else {
+                            document.getElementById('lat').value = '';
+                            document.getElementById('lng').value = '';
+                            if (chosenMarker) map.removeLayer(chosenMarker);
+                            selection.textContent = 'Choose a saved location or click inside Irisan.';
+                        }
+                    });
                 }
                 map.on('click', event => selectPoint(event.latlng.lat, event.latlng.lng, null, true));
             })
