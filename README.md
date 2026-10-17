@@ -100,6 +100,11 @@ three logical layers does not mean that three servers have been deployed.
 
 ## Website workflow
 
+![SmartSlope website workflow](assets/img/website-workflow.png)
+
+The diagram gives a simple overview. The steps below explain each feature.
+See [the six-week plan](SIX_WEEK_PLAN.md) for exact files assigned to each member.
+
 ### Registration and login
 
 1. The visitor opens the login/registration page.
