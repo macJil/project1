@@ -22,6 +22,7 @@ $activePage = $activePage ?? '';
     <script src="<?= BASE_URL ?>/assets/vendor/leaflet/leaflet.js" defer></script>
     <script src="<?= BASE_URL ?>/assets/js/location-map.js?v=p5-report-selection" defer></script>
     <?php endif; ?>
+    <?php if ($_SESSION['ROLE'] === 'admin'): ?><script src="<?= BASE_URL ?>/assets/js/bulk-select.js" defer></script><?php endif; ?>
 </head>
 <body>
 <nav class="navbar navbar-expand-lg site-nav py-3" aria-label="Main navigation">

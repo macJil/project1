@@ -5,13 +5,15 @@ if (!isset($readings)) {
     exit;
 }
 ?>
+<?php if (($_SESSION['ROLE'] ?? '') === 'admin') { $bulkKind = 'readings'; require __DIR__ . '/bulk-tools.php'; } ?>
 <div class="table-responsive">
     <table class="table align-middle">
         <caption class="visually-hidden">Saved weather readings; categories are historical results, not a current warning.</caption>
-        <thead><tr><th scope="col">Location</th><th scope="col">Risk status</th><th scope="col">Rainfall mm<br>1h / 24h / 72h</th><th scope="col">Observed (UTC)</th><th scope="col">Details</th></tr></thead>
+        <thead><tr><?php if (($_SESSION['ROLE'] ?? '') === 'admin'): ?><th><input type="checkbox" data-select-all="bulk-readings" aria-label="Select all displayed readings"></th><?php endif; ?><th scope="col">Location</th><th scope="col">Risk status</th><th scope="col">Rainfall mm<br>1h / 24h / 72h</th><th scope="col">Observed (UTC)</th><th scope="col">Details</th></tr></thead>
         <tbody>
         <?php foreach ($readings as $reading): ?>
             <tr>
+                <?php if (($_SESSION['ROLE'] ?? '') === 'admin'): ?><td><input type="checkbox" name="ids[]" value="<?= (int) $reading['id'] ?>" form="bulk-readings" aria-label="Select reading <?= (int) $reading['id'] ?>"></td><?php endif; ?>
                 <td class="fw-semibold"><?= htmlspecialchars($reading['name'], ENT_QUOTES, 'UTF-8') ?></td>
                 <td><span class="risk-badge risk-<?= htmlspecialchars($reading['risk_level'] ?? 'unavailable', ENT_QUOTES, 'UTF-8') ?>"><?= htmlspecialchars($reading['risk_level'] ?? 'unavailable', ENT_QUOTES, 'UTF-8') ?></span></td>
                 <td><?= htmlspecialchars(($reading['rainfall_1h'] ?? '—') . ' / ' . ($reading['rainfall_24h'] ?? '—') . ' / ' . ($reading['rainfall_72h'] ?? '—'), ENT_QUOTES, 'UTF-8') ?></td>
@@ -24,7 +26,7 @@ if (!isset($readings)) {
                 </td>
             </tr>
         <?php endforeach; ?>
-        <?php if (!$readings): ?><tr><td colspan="5" class="empty-cell">No saved weather readings available.</td></tr><?php endif; ?>
+        <?php if (!$readings): ?><tr><td colspan="<?= ($_SESSION['ROLE'] ?? '') === 'admin' ? 6 : 5 ?>" class="empty-cell">No saved weather readings available.</td></tr><?php endif; ?>
         </tbody>
     </table>
 </div>

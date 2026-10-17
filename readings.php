@@ -11,7 +11,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $_SESSION['ROLE'] !== 'admin') {
     exit('Access denied.');
 }
 $notice = $_SESSION['reading_notice'] ?? '';
-unset($_SESSION['reading_notice']);
+$noticeError = !empty($_SESSION['reading_notice_error']);
+unset($_SESSION['reading_notice'], $_SESSION['reading_notice_error']);
 $pageTitle = 'Weather readings';
 $activePage = 'readings';
 $readings = [];
@@ -42,8 +43,8 @@ require_once __DIR__ . '/includes/header.php';
 ?>
 <main class="page-shell">
     <div class="page-heading"><div><span class="eyebrow">Weather history</span><h1>Saved readings</h1><p class="page-subtitle">Recorded observations for Irisan. Categories describe saved readings, not current warnings.</p></div><a class="btn btn-outline-primary" href="<?= $home ?>">Back to dashboard</a></div>
-    <?php if ($notice): ?><p class="alert alert-success" role="status"><?= htmlspecialchars($notice, ENT_QUOTES, 'UTF-8') ?></p><?php endif; ?>
+    <?php if ($notice): ?><p class="alert alert-<?= $noticeError ? 'danger' : 'success' ?>" role="status"><?= htmlspecialchars($notice, ENT_QUOTES, 'UTF-8') ?></p><?php endif; ?>
     <?php if ($error): ?><p class="alert alert-danger" role="alert"><?= htmlspecialchars($error, ENT_QUOTES, 'UTF-8') ?></p><?php endif; ?>
-    <section class="card"><div class="card-header"><h2>Weather observations</h2></div><?php require __DIR__ . '/includes/readings-table.php'; ?></section>
+    <section class="card"><div class="card-header"><h2>Weather observations</h2></div><?php $csvKind = 'readings'; require __DIR__ . '/includes/csv-tools.php'; require __DIR__ . '/includes/readings-table.php'; ?></section>
 </main>
 <?php require_once __DIR__ . '/includes/footer.php'; ?>

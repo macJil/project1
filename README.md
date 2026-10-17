@@ -18,7 +18,7 @@ in place. No database schema or local configuration changes are required.
   place. Navigation supports Bootstrap's mobile offcanvas menu.
 - Login and registration stay together in one column with floating labels.
 - Phase 3 adds offline map selection and admin location management. Phase 4 adds weather fetching and rainfall assessment.
-  Phase 5 adds report submission/review and admin reading edits/deletion. CSV remains Phase 6.
+  Phase 5 adds report submission/review and admin reading edits/deletion. Phase 6 adds CSV tools and admin bulk actions.
 - Displayed dates are explicitly labeled UTC; high/medium totals count saved
   observations and must not be interpreted as current location risk.
 
@@ -150,7 +150,7 @@ Forecast/soil-moisture fields stay untouched and are not used by this phase.
    JSON. A logged-out request returns 401 JSON. POST is required to fetch/save.
 
 On a browser timeout the server may still finish saving: reload history before
-retrying. CSV remains Phase 6.
+retrying. Phase 6 adds CSV tools and admin bulk actions.
 
 ## Phase 5: reports and management
 
@@ -382,3 +382,34 @@ Verification: PHP syntax, JavaScript syntax, disposable MariaDB/HTTP tests at ro
 and `/project1` URLs, and mocked map interaction tests. Check the View dialog,
 selection, and marker colors in your actual browser after applying the patch;
 these automated checks do not constitute a browser rendering test.
+
+
+## Phase 6: CSV and bulk management
+
+- Readings page: both roles can download all saved, unarchived readings. Only
+  admins can import. Location Management: admins can download/import locations.
+- Download a CSV from this version first; imports require that exact header and
+  format marker. Maximum upload: 2 MB and 2000 data rows. Excel-friendly text
+  prefixes are added on export and removed on import. Do not change the header.
+- Locations match by coordinates (six decimal places). Existing locations are
+  skipped, never renamed/reactivated by import. Readings match by location and
+  UTC observation time, including archived records. Duplicate readings and
+  readings for inactive locations are skipped. Missing locations are created
+  from the CSV's location fields.
+- Reading imports retain saved values and risk status but are marked manual and
+  historical. They do not claim to be a fresh provider assessment. CSV is a data
+  exchange format, not a full backup of API payloads or edit history.
+- Invalid rows reject the whole file. Database failures roll back the import.
+  No schema changes or database re-import are needed.
+- Admin data tables have row checkboxes and Select all (displayed rows only).
+  Delete selected permanently removes selected readings/reports. Location bulk
+  actions can activate, deactivate, or delete unlinked locations. Linked locations
+  are skipped on delete to preserve their events. Use deactivate to hide them
+  from selection maps. Maximum bulk selection: 500 rows.
+- Read-only methodology tables and resident tables have no deletion controls.
+
+Quick local check: export and re-import (duplicates should be skipped); import
+one new row; try an invalid CSV; select two readings/reports and delete them;
+try deleting a linked location, then deactivate/reactivate it. Confirm a resident
+can download readings but cannot import or access bulk actions. Keep a database
+backup before testing permanent deletion with real project data.

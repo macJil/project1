@@ -19,7 +19,8 @@ $locations = [];
 $form = ['id' => 0, 'name' => '', 'purok' => '', 'landmark' => '', 'lat' => '', 'lng' => ''];
 $error = '';
 $notice = $_SESSION['location_notice'] ?? '';
-unset($_SESSION['location_notice']);
+$noticeError = !empty($_SESSION['location_notice_error']);
+unset($_SESSION['location_notice'], $_SESSION['location_notice_error']);
 try {
     if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $action = filter_input(INPUT_POST, 'action');
@@ -80,7 +81,7 @@ require_once __DIR__ . '/../../includes/header.php';
 <main class="page-shell">
     <div class="page-heading"><div><span class="eyebrow">SmartSlope · Irisan</span><h1>Location management</h1><p class="page-subtitle">Add named places inside Irisan. Coordinates can be selected on the local map.</p></div></div>
     <nav class="d-flex flex-wrap gap-2 mb-4" aria-label="Management sections"><a class="btn btn-primary" href="<?= BASE_URL ?>/users/admin/reports.php">Review reports</a><a class="btn btn-outline-primary" href="<?= BASE_URL ?>/readings.php">Manage readings</a></nav>
-    <?php if ($notice): ?><p class="alert alert-success" role="status"><?= htmlspecialchars($notice, ENT_QUOTES, 'UTF-8') ?></p><?php endif; ?>
+    <?php if ($notice): ?><p class="alert alert-<?= $noticeError ? 'danger' : 'success' ?>" role="status"><?= htmlspecialchars($notice, ENT_QUOTES, 'UTF-8') ?></p><?php endif; ?>
     <?php if ($error): ?><p class="alert alert-danger" role="alert"><?= htmlspecialchars($error, ENT_QUOTES, 'UTF-8') ?></p><?php endif; ?>
     <label for="manage-location" class="form-label">Choose an active saved location, or click the map to add one</label>
     <select id="manage-location" class="form-select mb-3">
@@ -108,9 +109,9 @@ require_once __DIR__ . '/../../includes/header.php';
             </form>
         </div></section></div>
     </div>
-    <section class="card"><div class="card-header"><h2>All locations</h2></div><div class="table-responsive"><table class="table align-middle">
-        <thead><tr><th>Name</th><th>House no. / location info</th><th>Coordinates</th><th>Status</th><th>Actions</th></tr></thead><tbody>
-        <?php foreach ($locations as $place): ?><tr>
+    <section class="card"><div class="card-header"><h2>All locations</h2></div><?php $csvKind = 'locations'; require __DIR__ . '/../../includes/csv-tools.php'; $bulkKind = 'locations'; require __DIR__ . '/../../includes/bulk-tools.php'; ?><div class="table-responsive"><table class="table align-middle">
+        <thead><tr><th><input type="checkbox" data-select-all="bulk-locations" aria-label="Select all locations"></th><th>Name</th><th>House no. / location info</th><th>Coordinates</th><th>Status</th><th>Actions</th></tr></thead><tbody>
+        <?php foreach ($locations as $place): ?><tr><td><input type="checkbox" name="ids[]" form="bulk-locations" value="<?= (int) $place['id'] ?>" aria-label="Select location <?= (int) $place['id'] ?>"></td>
             <td><?= htmlspecialchars($place['address_label'], ENT_QUOTES, 'UTF-8') ?></td>
             <td><?= htmlspecialchars($place['purok'] ?? '', ENT_QUOTES, 'UTF-8') ?></td>
             <td><?= htmlspecialchars(($place['lat'] ?? '—') . ', ' . ($place['lng'] ?? '—'), ENT_QUOTES, 'UTF-8') ?></td>
@@ -119,9 +120,9 @@ require_once __DIR__ . '/../../includes/header.php';
                 <form method="post" action="<?= BASE_URL ?>/users/admin/admin_panel.php"><input type="hidden" name="id" value="<?= (int) $place['id'] ?>"><input type="hidden" name="action" value="<?= $place['active'] ? 'deactivate' : 'activate' ?>"><button class="btn btn-sm btn-outline-secondary" type="submit"><?= $place['active'] ? 'Deactivate' : 'Activate' ?></button></form>
             </div></td>
         </tr><?php endforeach; ?>
-        <?php if (!$locations): ?><tr><td colspan="5" class="empty-cell">No locations available.</td></tr><?php endif; ?>
+        <?php if (!$locations): ?><tr><td colspan="6" class="empty-cell">No locations available.</td></tr><?php endif; ?>
         </tbody></table></div>
-        <div class="card-body"><p class="small mb-0">Deactivating hides a place from dashboard selection and keeps linked readings and reports. Use Review reports and Manage readings above. CSV tools arrive in Phase 6.</p></div>
+        <div class="card-body"><p class="small mb-0">Deactivating hides a place from dashboard selection and keeps linked readings and reports. Use Review reports and Manage readings above. CSV tools are available above. Delete only removes unlinked locations; deactivate locations with readings or reports.</p></div>
     </section>
 </main>
 <?php require_once __DIR__ . '/../../includes/footer.php'; ?>

@@ -1,0 +1,494 @@
+diff --git a/README.md b/README.md
+index 0d92421..642b6fc 100644
+--- a/README.md
++++ b/README.md
+@@ -18,7 +18,7 @@ in place. No database schema or local configuration changes are required.
+   place. Navigation supports Bootstrap's mobile offcanvas menu.
+ - Login and registration stay together in one column with floating labels.
+ - Phase 3 adds offline map selection and admin location management. Phase 4 adds weather fetching and rainfall assessment.
+-  Phase 5 adds report submission/review and admin reading edits/deletion. CSV remains Phase 6.
++  Phase 5 adds report submission/review and admin reading edits/deletion. Phase 6 adds CSV tools and admin bulk actions.
+ - Displayed dates are explicitly labeled UTC; high/medium totals count saved
+   observations and must not be interpreted as current location risk.
+ 
+@@ -150,7 +150,7 @@ Forecast/soil-moisture fields stay untouched and are not used by this phase.
+    JSON. A logged-out request returns 401 JSON. POST is required to fetch/save.
+ 
+ On a browser timeout the server may still finish saving: reload history before
+-retrying. CSV remains Phase 6.
++retrying. Phase 6 adds CSV tools and admin bulk actions.
+ 
+ ## Phase 5: reports and management
+ 
+@@ -382,3 +382,34 @@ Verification: PHP syntax, JavaScript syntax, disposable MariaDB/HTTP tests at ro
+ and `/project1` URLs, and mocked map interaction tests. Check the View dialog,
+ selection, and marker colors in your actual browser after applying the patch;
+ these automated checks do not constitute a browser rendering test.
++
++
++## Phase 6: CSV and bulk management
++
++- Readings page: both roles can download all saved, unarchived readings. Only
++  admins can import. Location Management: admins can download/import locations.
++- Download a CSV from this version first; imports require that exact header and
++  format marker. Maximum upload: 2 MB and 2000 data rows. Excel-friendly text
++  prefixes are added on export and removed on import. Do not change the header.
++- Locations match by coordinates (six decimal places). Existing locations are
++  skipped, never renamed/reactivated by import. Readings match by location and
++  UTC observation time, including archived records. Duplicate readings and
++  readings for inactive locations are skipped. Missing locations are created
++  from the CSV's location fields.
++- Reading imports retain saved values and risk status but are marked manual and
++  historical. They do not claim to be a fresh provider assessment. CSV is a data
++  exchange format, not a full backup of API payloads or edit history.
++- Invalid rows reject the whole file. Database failures roll back the import.
++  No schema changes or database re-import are needed.
++- Admin data tables have row checkboxes and Select all (displayed rows only).
++  Delete selected permanently removes selected readings/reports. Location bulk
++  actions can activate, deactivate, or delete unlinked locations. Linked locations
++  are skipped on delete to preserve their events. Use deactivate to hide them
++  from selection maps. Maximum bulk selection: 500 rows.
++- Read-only methodology tables and resident tables have no deletion controls.
++
++Quick local check: export and re-import (duplicates should be skipped); import
++one new row; try an invalid CSV; select two readings/reports and delete them;
++try deleting a linked location, then deactivate/reactivate it. Confirm a resident
++can download readings but cannot import or access bulk actions. Keep a database
++backup before testing permanent deletion with real project data.
+diff --git a/assets/js/bulk-select.js b/assets/js/bulk-select.js
+new file mode 100644
+index 0000000..5f2c36a
+--- /dev/null
++++ b/assets/js/bulk-select.js
+@@ -0,0 +1,10 @@
++// Checkboxes belong to a separate form, so existing row forms stay valid HTML.
++document.querySelectorAll('[data-select-all]').forEach(toggle => {
++    const boxes = document.querySelectorAll('input[name="ids[]"][form="' + toggle.dataset.selectAll + '"]');
++    toggle.addEventListener('change', () => boxes.forEach(box => { box.checked = toggle.checked; }));
++    boxes.forEach(box => box.addEventListener('change', () => {
++        const selected = Array.from(boxes).filter(item => item.checked).length;
++        toggle.checked = boxes.length > 0 && selected === boxes.length;
++        toggle.indeterminate = selected > 0 && selected < boxes.length;
++    }));
++});
+diff --git a/class/bulk.php b/class/bulk.php
+new file mode 100644
+index 0000000..3259e86
+--- /dev/null
++++ b/class/bulk.php
+@@ -0,0 +1,18 @@
++<?php
++require_once __DIR__ . '/db.php';
++
++class bulk_records extends db {
++    public function apply($kind, $action, $ids) {
++        $marks = implode(',', array_fill(0, count($ids), '?'));
++        if ($kind === 'locations') {
++            $sql = $action === 'delete'
++                ? "DELETE FROM locations WHERE id IN ($marks) AND NOT EXISTS (SELECT 1 FROM events WHERE events.location_id = locations.id)"
++                : 'UPDATE locations SET active = ' . ($action === 'activate' ? '1' : '0') . " WHERE id IN ($marks)";
++        } else {
++            $sql = "DELETE FROM events WHERE id IN ($marks) AND type = ?";
++            $ids[] = $kind === 'readings' ? 'reading' : 'report';
++        }
++        $stmt = $this->connect()->prepare($sql); $stmt->execute($ids);
++        return $stmt->rowCount();
++    }
++}
+diff --git a/class/csv.php b/class/csv.php
+new file mode 100644
+index 0000000..0c7589f
+--- /dev/null
++++ b/class/csv.php
+@@ -0,0 +1,120 @@
++<?php
++require_once __DIR__ . '/db.php';
++require_once __DIR__ . '/../includes/address.php';
++
++class csv_data extends db {
++    public function columns($kind) {
++        $columns = ['format', 'name', 'house_info', 'address', 'latitude', 'longitude'];
++        return array_merge($columns, $kind === 'locations'
++            ? ['susceptibility', 'active']
++            : ['observed_at_utc', 'rainfall_1h', 'rainfall_24h', 'rainfall_72h', 'temperature', 'humidity', 'wind_speed', 'risk_status']);
++    }
++
++    public function download($kind) {
++        $sql = $kind === 'locations' ? 'SELECT * FROM locations ORDER BY id'
++            : "SELECT locations.name, locations.purok, locations.landmark, locations.lat, locations.lng,
++                events.observed_at, events.rainfall_1h, events.rainfall_24h, events.rainfall_72h,
++                events.temperature, events.humidity, events.wind_speed, events.risk_level
++                FROM events JOIN locations ON locations.id = events.location_id
++                WHERE events.type = 'reading' AND events.archived = 0 ORDER BY events.observed_at DESC, events.id DESC";
++        $rows = $this->connect()->query($sql);
++        header('Content-Type: text/csv; charset=UTF-8');
++        header('Content-Disposition: attachment; filename="smartslope-' . $kind . '.csv"');
++        header('Cache-Control: no-store');
++        $out = fopen('php://output', 'w');
++        fputcsv($out, $this->columns($kind), ',', '"', '');
++        foreach ($rows as $row) {
++            $values = ['smartslope-' . $kind . '-v1', $row['name'], $row['purok'], $row['landmark'], $row['lat'], $row['lng']];
++            $fields = $kind === 'locations' ? ['susceptibility', 'active']
++                : ['observed_at', 'rainfall_1h', 'rainfall_24h', 'rainfall_72h', 'temperature', 'humidity', 'wind_speed', 'risk_level'];
++            foreach ($fields as $field) $values[] = $row[$field];
++            // Prefix text cells so spreadsheet software treats them as text. Import removes this prefix.
++            foreach ([1, 2, 3] as $index) $values[$index] = "'" . ($values[$index] ?? '');
++            fputcsv($out, $values, ',', '"', '');
++        }
++        fclose($out);
++    }
++
++    public function import($kind, $file) {
++        $handle = fopen($file, 'r');
++        $columns = $this->columns($kind);
++        $header = fgetcsv($handle, 0, ',', '"', '');
++        if ($header) $header[0] = preg_replace('/^\xEF\xBB\xBF/', '', $header[0]);
++        if ($header !== $columns) {
++            fclose($handle);
++            throw new InvalidArgumentException('Use a SmartSlope ' . $kind . ' CSV download with its original columns.');
++        }
++        $rows = [];
++        $line = 1;
++        while (($values = fgetcsv($handle, 0, ',', '"', '')) !== false) {
++            $line++;
++            if ($values === [null]) continue;
++            if (count($values) !== count($columns) || $values[0] !== 'smartslope-' . $kind . '-v1') {
++                fclose($handle);
++                throw new InvalidArgumentException('Invalid CSV row ' . $line . '. Nothing was imported.');
++            }
++            foreach ([1, 2, 3] as $index) {
++                if (str_starts_with($values[$index], "'")) $values[$index] = substr($values[$index], 1);
++            }
++            $row = array_combine($columns, $values);
++            $valid = $row['name'] !== '' && $row['name'] === address_text($row['name'], 150)
++                && $row['house_info'] === address_text($row['house_info'], 100)
++                && $row['address'] === address_text($row['address'], 255)
++                && is_numeric($row['latitude']) && is_numeric($row['longitude'])
++                && inside_irisan(round((float) $row['latitude'], 6), round((float) $row['longitude'], 6));
++            if ($kind === 'locations') {
++                $valid = $valid && in_array($row['active'], ['0', '1'], true)
++                    && in_array($row['susceptibility'], ['unknown','low','moderate','high','very_high','debris_flow'], true);
++            } else {
++                $date = DateTimeImmutable::createFromFormat('!Y-m-d H:i:s', $row['observed_at_utc'], new DateTimeZone('UTC'));
++                $valid = $valid && ($row['observed_at_utc'] === '' || ($date && $date->format('Y-m-d H:i:s') === $row['observed_at_utc']))
++                    && in_array($row['risk_status'], ['low','normal','medium','high'], true);
++                foreach (['rainfall_1h'=>[0,99999.99], 'rainfall_24h'=>[0,99999.99], 'rainfall_72h'=>[0,99999.99],
++                    'temperature'=>[-999.99,999.99], 'humidity'=>[0,100], 'wind_speed'=>[0,9999.99]] as $field => $range) {
++                    if ($row[$field] !== '') $valid = $valid && is_numeric($row[$field]) && $row[$field] >= $range[0] && $row[$field] <= $range[1];
++                }
++            }
++            if (!$valid || count($rows) >= 2000) {
++                fclose($handle);
++                throw new InvalidArgumentException('Check row ' . $line . ': valid Irisan coordinates and field values are required (maximum 2000 rows). Nothing was imported.');
++            }
++            $rows[] = $row;
++        }
++        fclose($handle);
++        if (!$rows) throw new InvalidArgumentException('The CSV contains no records.');
++        $pdo = $this->connect();
++        $added = $skipped = 0;
++        $pdo->beginTransaction();
++        try {
++            foreach ($rows as $row) {
++                $lat = round((float) $row['latitude'], 6); $lng = round((float) $row['longitude'], 6);
++                $find = $pdo->prepare('SELECT id, active FROM locations WHERE lat = ? AND lng = ?');
++                $find->execute([$lat, $lng]); $place = $find->fetch();
++                if ($kind === 'locations' && $place) { $skipped++; continue; }
++                if ($kind === 'readings' && $place && !$place['active']) { $skipped++; continue; }
++                if (!$place) {
++                    $insert = $pdo->prepare('INSERT INTO locations (name,purok,landmark,lat,lng,susceptibility,active) VALUES (?,?,?,?,?,?,?)');
++                    $insert->execute([$row['name'],$row['house_info'],$row['address'],$lat,$lng,$row['susceptibility'] ?? 'unknown',$row['active'] ?? 1]);
++                    $place = ['id'=>$pdo->lastInsertId()];
++                }
++                if ($kind === 'locations') { $added++; continue; }
++                $find = $pdo->prepare("SELECT id FROM events WHERE location_id = ? AND type = 'reading' AND observed_at <=> ?");
++                $find->execute([$place['id'],$row['observed_at_utc'] === '' ? null : $row['observed_at_utc']]);
++                if ($find->fetch()) { $skipped++; continue; }
++                $insert = $pdo->prepare("INSERT INTO events (location_id,type,observed_at,rainfall_1h,rainfall_24h,rainfall_72h,temperature,humidity,wind_speed,risk_level,source,adjustment_log)
++                    VALUES (?,'reading',?,?,?,?,?,?,?,?,'manual',?)");
++                $insert->execute([$place['id'],$row['observed_at_utc'] === '' ? null : $row['observed_at_utc'],$row['rainfall_1h'] === '' ? null : $row['rainfall_1h'],
++                    $row['rainfall_24h'] === '' ? null : $row['rainfall_24h'],$row['rainfall_72h'] === '' ? null : $row['rainfall_72h'],
++                    $row['temperature'] === '' ? null : $row['temperature'],$row['humidity'] === '' ? null : $row['humidity'],
++                    $row['wind_speed'] === '' ? null : $row['wind_speed'],$row['risk_status'],
++                    json_encode(['imported_by'=>$_SESSION['USER_ID'], 'imported_at_utc'=>gmdate('Y-m-d H:i:s')])]);
++                $added++;
++            }
++            $pdo->commit();
++        } catch (Throwable $error) {
++            $pdo->rollBack();
++            throw $error;
++        }
++        return "$added imported; $skipped skipped (existing records or inactive locations).";
++    }
++}
+diff --git a/class/events.php b/class/events.php
+index 731229f..061f440 100644
+--- a/class/events.php
++++ b/class/events.php
+@@ -51,7 +51,7 @@ class event extends db {
+     }
+ 
+     public function get_pending_reports() {
+-        $sql = "SELECT locations.name, locations.purok, locations.landmark, users.full_name AS reporter,
++        $sql = "SELECT events.id, locations.name, locations.purok, locations.landmark, users.full_name AS reporter,
+             COALESCE(events.contact_phone, users.phone) AS contact,
+             events.status AS report_status, events.created_at AS report_date
+             FROM events INNER JOIN locations ON events.location_id = locations.id
+diff --git a/csv.php b/csv.php
+new file mode 100644
+index 0000000..05cf600
+--- /dev/null
++++ b/csv.php
+@@ -0,0 +1,35 @@
++<?php
++require_once __DIR__ . '/includes/session.php';
++require_once __DIR__ . '/class/csv.php';
++if (empty($_SESSION['USER_ID']) || !in_array($_SESSION['ROLE'] ?? '', ['admin','user'], true)) {
++    http_response_code(401); exit('Please log in.');
++}
++$kind = $_GET['kind'] ?? '';
++if (!in_array($kind, ['locations','readings'], true)) { http_response_code(400); exit('Choose locations or readings.'); }
++if (($_SERVER['REQUEST_METHOD'] !== 'GET' || $kind === 'locations') && $_SESSION['ROLE'] !== 'admin') {
++    http_response_code(403); exit('Access denied.');
++}
++if (!in_array($_SERVER['REQUEST_METHOD'], ['GET','POST'], true)) { http_response_code(405); exit('Use GET or POST.'); }
++$destination = $kind === 'locations' ? '/users/admin/admin_panel.php' : '/readings.php';
++$key = $kind === 'locations' ? 'location_notice' : 'reading_notice';
++try {
++    $csv = new csv_data();
++    if ($_SERVER['REQUEST_METHOD'] === 'GET') { $csv->download($kind); exit; }
++    unset($_SESSION[$key . '_error']);
++    $upload = $_FILES['csv_file'] ?? [];
++    if (($upload['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK || !is_uploaded_file($upload['tmp_name'])
++        || $upload['size'] > 2 * 1024 * 1024 || strtolower(pathinfo($upload['name'], PATHINFO_EXTENSION)) !== 'csv') {
++        throw new InvalidArgumentException('Choose a CSV file no larger than 2 MB.');
++    }
++    $_SESSION[$key] = $csv->import($kind, $upload['tmp_name']);
++} catch (InvalidArgumentException $error) {
++    $_SESSION[$key . '_error'] = true;
++    $_SESSION[$key] = $error->getMessage();
++} catch (Throwable $error) {
++    error_log('SmartSlope CSV: ' . $error->getMessage());
++    if ($_SERVER['REQUEST_METHOD'] === 'GET') { http_response_code(503); exit('CSV download unavailable.'); }
++    $_SESSION[$key . '_error'] = true;
++    $_SESSION[$key] = 'CSV import failed. Nothing was imported. Check the server log.';
++}
++header('Location: ' . BASE_URL . $destination, true, 303);
++exit;
+diff --git a/includes/bulk-tools.php b/includes/bulk-tools.php
+new file mode 100644
+index 0000000..5dd92ff
+--- /dev/null
++++ b/includes/bulk-tools.php
+@@ -0,0 +1,9 @@
++<?php if (!isset($bulkKind) || ($_SESSION['ROLE'] ?? '') !== 'admin') { http_response_code(404); exit; } ?>
++<form id="bulk-<?= $bulkKind ?>" class="p-3 d-flex flex-wrap gap-2 align-items-center" method="post" action="<?= BASE_URL ?>/users/admin/bulk.php" onsubmit="return confirm('Apply this action to the selected rows? Deletion is permanent.');">
++    <input type="hidden" name="kind" value="<?= $bulkKind ?>">
++    <?php if ($bulkKind === 'locations'): ?>
++    <select class="form-select w-auto" name="action" aria-label="Selected locations action"><option value="deactivate">Deactivate selected</option><option value="activate">Activate selected</option><option value="delete">Delete selected (unlinked only)</option></select>
++    <button class="btn btn-outline-danger">Apply to selected</button>
++    <?php else: ?><input type="hidden" name="action" value="delete"><button class="btn btn-outline-danger">Delete selected</button><?php endif; ?>
++    <span class="small text-muted">Select up to 500 rows.</span>
++</form>
+diff --git a/includes/csv-tools.php b/includes/csv-tools.php
+new file mode 100644
+index 0000000..8f346ef
+--- /dev/null
++++ b/includes/csv-tools.php
+@@ -0,0 +1,11 @@
++<?php if (!isset($csvKind) || empty($_SESSION['USER_ID'])) { http_response_code(404); exit; } ?>
++<div class="card-body border-bottom">
++    <a class="btn btn-outline-primary" href="<?= BASE_URL ?>/csv.php?kind=<?= $csvKind ?>">Download <?= $csvKind ?> CSV</a>
++    <?php if ($_SESSION['ROLE'] === 'admin'): ?>
++    <form method="post" enctype="multipart/form-data" action="<?= BASE_URL ?>/csv.php?kind=<?= $csvKind ?>" class="mt-3">
++        <label class="form-label" for="csv-<?= $csvKind ?>">Import a SmartSlope <?= $csvKind ?> CSV (maximum 2 MB / 2000 rows)</label>
++        <div class="d-flex flex-wrap gap-2"><input id="csv-<?= $csvKind ?>" class="form-control w-auto" type="file" name="csv_file" accept=".csv,text/csv" required><button class="btn btn-primary">Import CSV</button></div>
++        <p class="small text-muted mt-2 mb-0">Use the site's downloaded format. Existing records are skipped. Imported readings are manual historical records, not new live weather assessments.</p>
++    </form>
++    <?php endif; ?>
++</div>
+diff --git a/includes/dashboard.php b/includes/dashboard.php
+index 0c13976..89b210e 100644
+--- a/includes/dashboard.php
++++ b/includes/dashboard.php
+@@ -82,11 +82,12 @@ require_once __DIR__ . '/header.php';
+     <?php if ($admin): ?>
+         <section class="card" aria-labelledby="reports-title">
+             <div class="card-header d-flex align-items-center justify-content-between gap-2"><h2 id="reports-title">Pending reports</h2><a class="btn btn-sm btn-outline-secondary" href="<?= BASE_URL ?>/users/admin/reports.php?status=pending">Review reports</a></div>
+-            <div class="table-responsive"><table class="table align-middle"><caption class="visually-hidden">Reports awaiting administrator review</caption><thead><tr><th scope="col">Location</th><th scope="col">Reporter</th><th scope="col">Contact</th><th scope="col">Submitted (UTC)</th><th scope="col">Status</th></tr></thead><tbody>
+-                <?php foreach ($reports as $report): ?><tr>
++            <?php $bulkKind = 'reports'; require __DIR__ . '/bulk-tools.php'; ?>
++            <div class="table-responsive"><table class="table align-middle"><caption class="visually-hidden">Reports awaiting administrator review</caption><thead><tr><th><input type="checkbox" data-select-all="bulk-reports" aria-label="Select all pending reports"></th><th scope="col">Location</th><th scope="col">Reporter</th><th scope="col">Contact</th><th scope="col">Submitted (UTC)</th><th scope="col">Status</th></tr></thead><tbody>
++                <?php foreach ($reports as $report): ?><tr><td><input type="checkbox" name="ids[]" form="bulk-reports" value="<?= (int) $report['id'] ?>" aria-label="Select report <?= (int) $report['id'] ?>"></td>
+                     <td><?= htmlspecialchars($report['location_name'], ENT_QUOTES, 'UTF-8') ?></td><td><?= htmlspecialchars($report['reporter'] ?? 'Former account', ENT_QUOTES, 'UTF-8') ?></td><td><?= htmlspecialchars($report['contact'] ?? 'Not provided', ENT_QUOTES, 'UTF-8') ?></td><td><?= htmlspecialchars($report['report_date'], ENT_QUOTES, 'UTF-8') ?></td><td><span class="risk-badge risk-medium">Pending</span></td>
+                 </tr><?php endforeach; ?>
+-                <?php if (!$reports): ?><tr><td colspan="5" class="empty-cell">No pending reports to review.</td></tr><?php endif; ?>
++                <?php if (!$reports): ?><tr><td colspan="6" class="empty-cell">No pending reports to review.</td></tr><?php endif; ?>
+             </tbody></table></div>
+         </section>
+     <?php else: ?>
+diff --git a/includes/header.php b/includes/header.php
+index a43ce72..1cd161a 100644
+--- a/includes/header.php
++++ b/includes/header.php
+@@ -22,6 +22,7 @@ $activePage = $activePage ?? '';
+     <script src="<?= BASE_URL ?>/assets/vendor/leaflet/leaflet.js" defer></script>
+     <script src="<?= BASE_URL ?>/assets/js/location-map.js?v=p5-report-selection" defer></script>
+     <?php endif; ?>
++    <?php if ($_SESSION['ROLE'] === 'admin'): ?><script src="<?= BASE_URL ?>/assets/js/bulk-select.js" defer></script><?php endif; ?>
+ </head>
+ <body>
+ <nav class="navbar navbar-expand-lg site-nav py-3" aria-label="Main navigation">
+diff --git a/includes/readings-table.php b/includes/readings-table.php
+index b8a9e59..23d1c30 100644
+--- a/includes/readings-table.php
++++ b/includes/readings-table.php
+@@ -5,13 +5,15 @@ if (!isset($readings)) {
+     exit;
+ }
+ ?>
++<?php if (($_SESSION['ROLE'] ?? '') === 'admin') { $bulkKind = 'readings'; require __DIR__ . '/bulk-tools.php'; } ?>
+ <div class="table-responsive">
+     <table class="table align-middle">
+         <caption class="visually-hidden">Saved weather readings; categories are historical results, not a current warning.</caption>
+-        <thead><tr><th scope="col">Location</th><th scope="col">Risk status</th><th scope="col">Rainfall mm<br>1h / 24h / 72h</th><th scope="col">Observed (UTC)</th><th scope="col">Details</th></tr></thead>
++        <thead><tr><?php if (($_SESSION['ROLE'] ?? '') === 'admin'): ?><th><input type="checkbox" data-select-all="bulk-readings" aria-label="Select all displayed readings"></th><?php endif; ?><th scope="col">Location</th><th scope="col">Risk status</th><th scope="col">Rainfall mm<br>1h / 24h / 72h</th><th scope="col">Observed (UTC)</th><th scope="col">Details</th></tr></thead>
+         <tbody>
+         <?php foreach ($readings as $reading): ?>
+             <tr>
++                <?php if (($_SESSION['ROLE'] ?? '') === 'admin'): ?><td><input type="checkbox" name="ids[]" value="<?= (int) $reading['id'] ?>" form="bulk-readings" aria-label="Select reading <?= (int) $reading['id'] ?>"></td><?php endif; ?>
+                 <td class="fw-semibold"><?= htmlspecialchars($reading['name'], ENT_QUOTES, 'UTF-8') ?></td>
+                 <td><span class="risk-badge risk-<?= htmlspecialchars($reading['risk_level'] ?? 'unavailable', ENT_QUOTES, 'UTF-8') ?>"><?= htmlspecialchars($reading['risk_level'] ?? 'unavailable', ENT_QUOTES, 'UTF-8') ?></span></td>
+                 <td><?= htmlspecialchars(($reading['rainfall_1h'] ?? '—') . ' / ' . ($reading['rainfall_24h'] ?? '—') . ' / ' . ($reading['rainfall_72h'] ?? '—'), ENT_QUOTES, 'UTF-8') ?></td>
+@@ -24,7 +26,7 @@ if (!isset($readings)) {
+                 </td>
+             </tr>
+         <?php endforeach; ?>
+-        <?php if (!$readings): ?><tr><td colspan="5" class="empty-cell">No saved weather readings available.</td></tr><?php endif; ?>
++        <?php if (!$readings): ?><tr><td colspan="<?= ($_SESSION['ROLE'] ?? '') === 'admin' ? 6 : 5 ?>" class="empty-cell">No saved weather readings available.</td></tr><?php endif; ?>
+         </tbody>
+     </table>
+ </div>
+diff --git a/readings.php b/readings.php
+index f702ab3..690626e 100644
+--- a/readings.php
++++ b/readings.php
+@@ -11,7 +11,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $_SESSION['ROLE'] !== 'admin') {
+     exit('Access denied.');
+ }
+ $notice = $_SESSION['reading_notice'] ?? '';
+-unset($_SESSION['reading_notice']);
++$noticeError = !empty($_SESSION['reading_notice_error']);
++unset($_SESSION['reading_notice'], $_SESSION['reading_notice_error']);
+ $pageTitle = 'Weather readings';
+ $activePage = 'readings';
+ $readings = [];
+@@ -42,8 +43,8 @@ require_once __DIR__ . '/includes/header.php';
+ ?>
+ <main class="page-shell">
+     <div class="page-heading"><div><span class="eyebrow">Weather history</span><h1>Saved readings</h1><p class="page-subtitle">Recorded observations for Irisan. Categories describe saved readings, not current warnings.</p></div><a class="btn btn-outline-primary" href="<?= $home ?>">Back to dashboard</a></div>
+-    <?php if ($notice): ?><p class="alert alert-success" role="status"><?= htmlspecialchars($notice, ENT_QUOTES, 'UTF-8') ?></p><?php endif; ?>
++    <?php if ($notice): ?><p class="alert alert-<?= $noticeError ? 'danger' : 'success' ?>" role="status"><?= htmlspecialchars($notice, ENT_QUOTES, 'UTF-8') ?></p><?php endif; ?>
+     <?php if ($error): ?><p class="alert alert-danger" role="alert"><?= htmlspecialchars($error, ENT_QUOTES, 'UTF-8') ?></p><?php endif; ?>
+-    <section class="card"><div class="card-header"><h2>Weather observations</h2></div><?php require __DIR__ . '/includes/readings-table.php'; ?></section>
++    <section class="card"><div class="card-header"><h2>Weather observations</h2></div><?php $csvKind = 'readings'; require __DIR__ . '/includes/csv-tools.php'; require __DIR__ . '/includes/readings-table.php'; ?></section>
+ </main>
+ <?php require_once __DIR__ . '/includes/footer.php'; ?>
+diff --git a/users/admin/admin_panel.php b/users/admin/admin_panel.php
+index e368564..efa8605 100644
+--- a/users/admin/admin_panel.php
++++ b/users/admin/admin_panel.php
+@@ -19,7 +19,8 @@ $locations = [];
+ $form = ['id' => 0, 'name' => '', 'purok' => '', 'landmark' => '', 'lat' => '', 'lng' => ''];
+ $error = '';
+ $notice = $_SESSION['location_notice'] ?? '';
+-unset($_SESSION['location_notice']);
++$noticeError = !empty($_SESSION['location_notice_error']);
++unset($_SESSION['location_notice'], $_SESSION['location_notice_error']);
+ try {
+     if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+         $action = filter_input(INPUT_POST, 'action');
+@@ -80,7 +81,7 @@ require_once __DIR__ . '/../../includes/header.php';
+ <main class="page-shell">
+     <div class="page-heading"><div><span class="eyebrow">SmartSlope · Irisan</span><h1>Location management</h1><p class="page-subtitle">Add named places inside Irisan. Coordinates can be selected on the local map.</p></div></div>
+     <nav class="d-flex flex-wrap gap-2 mb-4" aria-label="Management sections"><a class="btn btn-primary" href="<?= BASE_URL ?>/users/admin/reports.php">Review reports</a><a class="btn btn-outline-primary" href="<?= BASE_URL ?>/readings.php">Manage readings</a></nav>
+-    <?php if ($notice): ?><p class="alert alert-success" role="status"><?= htmlspecialchars($notice, ENT_QUOTES, 'UTF-8') ?></p><?php endif; ?>
++    <?php if ($notice): ?><p class="alert alert-<?= $noticeError ? 'danger' : 'success' ?>" role="status"><?= htmlspecialchars($notice, ENT_QUOTES, 'UTF-8') ?></p><?php endif; ?>
+     <?php if ($error): ?><p class="alert alert-danger" role="alert"><?= htmlspecialchars($error, ENT_QUOTES, 'UTF-8') ?></p><?php endif; ?>
+     <label for="manage-location" class="form-label">Choose an active saved location, or click the map to add one</label>
+     <select id="manage-location" class="form-select mb-3">
+@@ -108,9 +109,9 @@ require_once __DIR__ . '/../../includes/header.php';
+             </form>
+         </div></section></div>
+     </div>
+-    <section class="card"><div class="card-header"><h2>All locations</h2></div><div class="table-responsive"><table class="table align-middle">
+-        <thead><tr><th>Name</th><th>House no. / location info</th><th>Coordinates</th><th>Status</th><th>Actions</th></tr></thead><tbody>
+-        <?php foreach ($locations as $place): ?><tr>
++    <section class="card"><div class="card-header"><h2>All locations</h2></div><?php $csvKind = 'locations'; require __DIR__ . '/../../includes/csv-tools.php'; $bulkKind = 'locations'; require __DIR__ . '/../../includes/bulk-tools.php'; ?><div class="table-responsive"><table class="table align-middle">
++        <thead><tr><th><input type="checkbox" data-select-all="bulk-locations" aria-label="Select all locations"></th><th>Name</th><th>House no. / location info</th><th>Coordinates</th><th>Status</th><th>Actions</th></tr></thead><tbody>
++        <?php foreach ($locations as $place): ?><tr><td><input type="checkbox" name="ids[]" form="bulk-locations" value="<?= (int) $place['id'] ?>" aria-label="Select location <?= (int) $place['id'] ?>"></td>
+             <td><?= htmlspecialchars($place['address_label'], ENT_QUOTES, 'UTF-8') ?></td>
+             <td><?= htmlspecialchars($place['purok'] ?? '', ENT_QUOTES, 'UTF-8') ?></td>
+             <td><?= htmlspecialchars(($place['lat'] ?? '—') . ', ' . ($place['lng'] ?? '—'), ENT_QUOTES, 'UTF-8') ?></td>
+@@ -119,9 +120,9 @@ require_once __DIR__ . '/../../includes/header.php';
+                 <form method="post" action="<?= BASE_URL ?>/users/admin/admin_panel.php"><input type="hidden" name="id" value="<?= (int) $place['id'] ?>"><input type="hidden" name="action" value="<?= $place['active'] ? 'deactivate' : 'activate' ?>"><button class="btn btn-sm btn-outline-secondary" type="submit"><?= $place['active'] ? 'Deactivate' : 'Activate' ?></button></form>
+             </div></td>
+         </tr><?php endforeach; ?>
+-        <?php if (!$locations): ?><tr><td colspan="5" class="empty-cell">No locations available.</td></tr><?php endif; ?>
++        <?php if (!$locations): ?><tr><td colspan="6" class="empty-cell">No locations available.</td></tr><?php endif; ?>
+         </tbody></table></div>
+-        <div class="card-body"><p class="small mb-0">Deactivating hides a place from dashboard selection and keeps linked readings and reports. Use Review reports and Manage readings above. CSV tools arrive in Phase 6.</p></div>
++        <div class="card-body"><p class="small mb-0">Deactivating hides a place from dashboard selection and keeps linked readings and reports. Use Review reports and Manage readings above. CSV tools are available above. Delete only removes unlinked locations; deactivate locations with readings or reports.</p></div>
+     </section>
+ </main>
+ <?php require_once __DIR__ . '/../../includes/footer.php'; ?>
+diff --git a/users/admin/bulk.php b/users/admin/bulk.php
+new file mode 100644
+index 0000000..54650cd
+--- /dev/null
++++ b/users/admin/bulk.php
+@@ -0,0 +1,27 @@
++<?php
++require_once __DIR__ . '/../../includes/session.php';
++require_once __DIR__ . '/../../class/bulk.php';
++if (empty($_SESSION['USER_ID']) || ($_SESSION['ROLE'] ?? '') !== 'admin') { http_response_code(403); exit('Access denied.'); }
++if ($_SERVER['REQUEST_METHOD'] !== 'POST') { http_response_code(405); exit('Use POST.'); }
++$kind = $_POST['kind'] ?? '';
++$action = $_POST['action'] ?? '';
++$routes = ['readings'=>['/readings.php','reading_notice'], 'reports'=>['/users/admin/reports.php','review_notice'], 'locations'=>['/users/admin/admin_panel.php','location_notice']];
++if (!is_string($kind) || !isset($routes[$kind]) || !in_array($action, $kind === 'locations' ? ['delete','deactivate','activate'] : ['delete'], true)) {
++    http_response_code(400); exit('Invalid bulk action.');
++}
++$ids = $_POST['ids'] ?? [];
++if (!is_array($ids) || !$ids || count($ids) > 500) {
++    $_SESSION[$routes[$kind][1]] = 'Select between 1 and 500 rows.';
++} else {
++    foreach ($ids as $id) if (!filter_var($id, FILTER_VALIDATE_INT, ['options'=>['min_range'=>1]])) { http_response_code(400); exit('Invalid selection.'); }
++    $ids = array_values(array_unique($ids));
++    try {
++        $changed = (new bulk_records())->apply($kind, $action, $ids);
++        $_SESSION[$routes[$kind][1]] = "$changed records changed. " . (count($ids)-$changed) . ' unchanged or skipped. Linked locations cannot be deleted; deactivate them instead.';
++    } catch (PDOException $error) {
++        error_log('SmartSlope bulk: ' . $error->getMessage());
++        $_SESSION[$routes[$kind][1]] = 'Bulk action failed. Please try again.';
++    }
++}
++header('Location: ' . BASE_URL . $routes[$kind][0], true, 303);
++exit;
+diff --git a/users/admin/reports.php b/users/admin/reports.php
+index df6e0e0..df3ae66 100644
+--- a/users/admin/reports.php
++++ b/users/admin/reports.php
+@@ -56,9 +56,9 @@ require_once __DIR__ . '/../../includes/header.php';
+     <nav class="nav nav-pills gap-2 mb-3" aria-label="Report status filters">
+     <?php foreach (['all', 'pending', 'reviewed', 'resolved'] as $status): ?><a class="nav-link <?= $filter === $status ? 'active' : '' ?>" <?= $filter === $status ? 'aria-current="page"' : '' ?> href="?status=<?= $status ?>"><?= ucfirst($status) ?></a><?php endforeach; ?>
+     </nav>
+-    <section class="card"><div class="table-responsive"><table class="table align-middle"><thead><tr><th>Location</th><th>Reporter</th><th>Submitted (UTC)</th><th>Status</th><th>Details</th></tr></thead><tbody>
+-    <?php foreach ($items as $report): ?><tr data-report-id="<?= (int) $report['id'] ?>"><td><?= htmlspecialchars($report['name'], ENT_QUOTES, 'UTF-8') ?></td><td><?= htmlspecialchars($report['reporter'] ?? 'Former account', ENT_QUOTES, 'UTF-8') ?></td><td><?= htmlspecialchars($report['created_at'], ENT_QUOTES, 'UTF-8') ?></td><td><?= ucfirst($report['status']) ?></td><td><button class="btn btn-sm btn-outline-primary" type="button" data-bs-toggle="modal" data-bs-target="#report-<?= (int) $report['id'] ?>">View</button></td></tr><?php endforeach; ?>
+-    <?php if (!$items): ?><tr><td colspan="5" class="empty-cell">No reports match this status.</td></tr><?php endif; ?>
++    <section class="card"><?php $bulkKind = 'reports'; require __DIR__ . '/../../includes/bulk-tools.php'; ?><div class="table-responsive"><table class="table align-middle"><thead><tr><th><input type="checkbox" data-select-all="bulk-reports" aria-label="Select all displayed reports"></th><th>Location</th><th>Reporter</th><th>Submitted (UTC)</th><th>Status</th><th>Details</th></tr></thead><tbody>
++    <?php foreach ($items as $report): ?><tr data-report-id="<?= (int) $report['id'] ?>"><td><input type="checkbox" name="ids[]" form="bulk-reports" value="<?= (int) $report['id'] ?>" aria-label="Select report <?= (int) $report['id'] ?>"></td><td><?= htmlspecialchars($report['name'], ENT_QUOTES, 'UTF-8') ?></td><td><?= htmlspecialchars($report['reporter'] ?? 'Former account', ENT_QUOTES, 'UTF-8') ?></td><td><?= htmlspecialchars($report['created_at'], ENT_QUOTES, 'UTF-8') ?></td><td><?= ucfirst($report['status']) ?></td><td><button class="btn btn-sm btn-outline-primary" type="button" data-bs-toggle="modal" data-bs-target="#report-<?= (int) $report['id'] ?>">View</button></td></tr><?php endforeach; ?>
++    <?php if (!$items): ?><tr><td colspan="6" class="empty-cell">No reports match this status.</td></tr><?php endif; ?>
+     </tbody></table></div></section>
+     <?php foreach ($items as $report): ?>
+     <div class="modal fade" id="report-<?= (int) $report['id'] ?>" tabindex="-1" aria-labelledby="report-title-<?= (int) $report['id'] ?>" aria-hidden="true"><div class="modal-dialog modal-dialog-scrollable"><div class="modal-content">

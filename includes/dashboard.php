@@ -82,11 +82,12 @@ require_once __DIR__ . '/header.php';
     <?php if ($admin): ?>
         <section class="card" aria-labelledby="reports-title">
             <div class="card-header d-flex align-items-center justify-content-between gap-2"><h2 id="reports-title">Pending reports</h2><a class="btn btn-sm btn-outline-secondary" href="<?= BASE_URL ?>/users/admin/reports.php?status=pending">Review reports</a></div>
-            <div class="table-responsive"><table class="table align-middle"><caption class="visually-hidden">Reports awaiting administrator review</caption><thead><tr><th scope="col">Location</th><th scope="col">Reporter</th><th scope="col">Contact</th><th scope="col">Submitted (UTC)</th><th scope="col">Status</th></tr></thead><tbody>
-                <?php foreach ($reports as $report): ?><tr>
+            <?php $bulkKind = 'reports'; require __DIR__ . '/bulk-tools.php'; ?>
+            <div class="table-responsive"><table class="table align-middle"><caption class="visually-hidden">Reports awaiting administrator review</caption><thead><tr><th><input type="checkbox" data-select-all="bulk-reports" aria-label="Select all pending reports"></th><th scope="col">Location</th><th scope="col">Reporter</th><th scope="col">Contact</th><th scope="col">Submitted (UTC)</th><th scope="col">Status</th></tr></thead><tbody>
+                <?php foreach ($reports as $report): ?><tr><td><input type="checkbox" name="ids[]" form="bulk-reports" value="<?= (int) $report['id'] ?>" aria-label="Select report <?= (int) $report['id'] ?>"></td>
                     <td><?= htmlspecialchars($report['location_name'], ENT_QUOTES, 'UTF-8') ?></td><td><?= htmlspecialchars($report['reporter'] ?? 'Former account', ENT_QUOTES, 'UTF-8') ?></td><td><?= htmlspecialchars($report['contact'] ?? 'Not provided', ENT_QUOTES, 'UTF-8') ?></td><td><?= htmlspecialchars($report['report_date'], ENT_QUOTES, 'UTF-8') ?></td><td><span class="risk-badge risk-medium">Pending</span></td>
                 </tr><?php endforeach; ?>
-                <?php if (!$reports): ?><tr><td colspan="5" class="empty-cell">No pending reports to review.</td></tr><?php endif; ?>
+                <?php if (!$reports): ?><tr><td colspan="6" class="empty-cell">No pending reports to review.</td></tr><?php endif; ?>
             </tbody></table></div>
         </section>
     <?php else: ?>

@@ -51,7 +51,7 @@ class event extends db {
     }
 
     public function get_pending_reports() {
-        $sql = "SELECT locations.name, locations.purok, locations.landmark, users.full_name AS reporter,
+        $sql = "SELECT events.id, locations.name, locations.purok, locations.landmark, users.full_name AS reporter,
             COALESCE(events.contact_phone, users.phone) AS contact,
             events.status AS report_status, events.created_at AS report_date
             FROM events INNER JOIN locations ON events.location_id = locations.id
