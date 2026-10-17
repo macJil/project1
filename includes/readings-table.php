@@ -21,7 +21,6 @@ if (!isset($readings)) {
                 <td><a class="btn btn-sm btn-outline-primary" href="?<?= isset($selectedLocation['id']) ? 'location_id=' . (int) $selectedLocation['id'] . '&amp;' : '' ?>dialog_id=<?= (int) $reading['id'] ?>#reading-details" aria-label="Details for reading <?= (int) $reading['id'] ?>">Details</a>
                     <?php if (($_SESSION['ROLE'] ?? '') === 'admin'): ?>
                     <a class="btn btn-sm btn-outline-secondary" href="<?= BASE_URL ?>/users/admin/edit_reading.php?id=<?= (int) $reading['id'] ?>">Edit</a>
-                    <form class="d-inline" method="post" action="<?= BASE_URL ?>/readings.php" onsubmit="return confirm('Permanently delete this reading?');"><input type="hidden" name="id" value="<?= (int) $reading['id'] ?>"><input type="hidden" name="action" value="delete"><button class="btn btn-sm btn-outline-danger" type="submit">Delete</button></form>
                     <?php endif; ?>
                 </td>
             </tr>

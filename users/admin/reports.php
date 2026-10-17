@@ -79,7 +79,6 @@ require_once __DIR__ . '/../../includes/header.php';
                 <select class="form-select mb-3" id="status-<?= (int) $report['id'] ?>" name="status"><?php foreach ($statuses as $status): ?><option value="<?= $status ?>" <?= $status === $report['status'] ? 'selected' : '' ?>><?= ucfirst($status) ?></option><?php endforeach; ?></select>
                 <button class="btn btn-primary" type="submit">Save review status</button>
             </form>
-            <form method="post" action="?status=<?= $filter ?>" class="mt-3" onsubmit="return confirm('Permanently delete this report?');"><input type="hidden" name="id" value="<?= (int) $report['id'] ?>"><input type="hidden" name="action" value="delete"><button class="btn btn-outline-danger" type="submit">Delete report</button></form>
         </div>
     </div></div></div>
     <?php endforeach; ?>
