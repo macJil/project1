@@ -8,16 +8,3 @@ const DB_PORT = 8889;
 const DB_NAME = 'smartslope_mvp';
 const DB_USER = 'root';
 const DB_PASS = 'root';
-
-// Existing dashboard display helpers.
-function check_role() {
-    return ($_SESSION['ROLE'] ?? '') === 'admin' ? '' : 'hidden';
-}
-
-function check_status($status) {
-    return $status ? 'Outdated' : 'Current';
-}
-
-function check_report_status($status) {
-    return $status === 'pending' ? 'Review' : 'Resolve';
-}

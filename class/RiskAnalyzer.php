@@ -1,5 +1,5 @@
 <?php
-// These are the original SmartSlope prototype thresholds, not validated warnings.
+// These are SmartSlope prototype thresholds, not validated warnings.
 class RiskAnalyzer {
     const VERSION = 'prototype-1';
     const MAX_AGE = 10800; // Three hours, measured from the rainfall window end.

@@ -1,0 +1,1697 @@
+diff --git a/README.md b/README.md
+index 642b6fc..3a5b968 100644
+--- a/README.md
++++ b/README.md
+@@ -1,415 +1,105 @@
+-# SmartSlope — Phase 5
+-
+-Separate administrator and resident dashboards with a shared green-and-brown
+-Bootstrap theme. Login, registration, logout, and role checks from Phase 1 remain
+-in place. No database schema or local configuration changes are required.
+-
+-## Dashboard screens
+-
+-- Admins open `users/admin/admin.php`: active-location totals, saved reading
+-  counts, recent weather readings, and a private pending-report list.
+-- Residents open `users/user/user.php`: community readings and their own report
+-  count. Other residents' report/contact details are not sent to the browser.
+-- `dashboard.php` redirects to the appropriate dashboard and preserves valid
+-  `dialog_id` reading-detail bookmarks.
+-- `readings.php` lists all non-archived saved readings, newest first, with working
+-  detail links. Dashboards show the five most recent readings.
+-- Shared PHP sections in `includes/` keep dashboard and reading-table HTML in one
+-  place. Navigation supports Bootstrap's mobile offcanvas menu.
+-- Login and registration stay together in one column with floating labels.
+-- Phase 3 adds offline map selection and admin location management. Phase 4 adds weather fetching and rainfall assessment.
+-  Phase 5 adds report submission/review and admin reading edits/deletion. Phase 6 adds CSV tools and admin bulk actions.
+-- Displayed dates are explicitly labeled UTC; high/medium totals count saved
+-  observations and must not be interpreted as current location risk.
+-
+-Phase 2 checks: repeat Phase 1 authentication checks below, open both dashboards,
+-open a reading detail and close it, follow View all, and try the mobile navigation.
+-Verify empty tables and multiple saved readings. Confirm a resident sees only
+-his or her own report count and no administrator report table.
+-
+-## Phase 3: locations and offline map
+-
+-Both dashboards now show the bundled Irisan boundary and active location markers.
+-Click a marker or a point inside Irisan to fetch and save weather, then view that
+-location’s recent readings. **View saved readings here** opens history without
+-requesting new weather and is useful offline. A new coordinate pair gets a simple
+-coordinate-based name after weather succeeds; admins can rename it later. Saved names, puroks, and landmarks work offline; reverse address lookup
+-is not available offline.
+-
+-Admins can add/edit locations in **Management**, using map clicks or coordinate
+-inputs. Coordinates are checked against the same Irisan polygon in PHP and JS.
+-New locations use the existing schema's `unknown` susceptibility default; existing
+-susceptibility values are retained. Deactivate/reactivate changes `active` only.
+-We do not delete locations because the existing foreign key would cascade-delete
+-their readings and reports. Residents cannot access these management actions.
+-
+-### Copy the offline image tiles
+-
+-The patch includes local Leaflet (including images and LICENSE), the Irisan
+-GeoJSON, and the new map code. The larger tile images are copied separately.
+-Use `macJil/smartslope`, branch **sf2**, commit
+-`a27af9280de02c061eee2f147edcecd33cbe98a4` as the source:
+-
+-| Copy from SmartSlope sf2 | Copy to this project |
++# SmartSlope — Version 1.0
++
++SmartSlope is an academic landslide-awareness web application for Barangay
++Irisan, Baguio City. It combines an offline map, API weather records, simple
++rainfall screening, and resident observations. It is not an official warning
++service or a validated landslide prediction system.
++
++## Features
++
++- Registration and username/password login; separate resident/admin dashboards.
++- Offline Leaflet map, Irisan boundary, active locations, and saved risk colors.
++- Click-to-select weather refresh, saved readings, timestamps, and freshness checks.
++- Automatic approximate addresses when online; saved addresses work offline.
++- Resident reports with selected address/coordinates, required phone and email.
++- Admin report review, original report-point map, and pending/reviewed/resolved filters.
++- Admin location management and reading edits, risk overrides, and deletion.
++- Reading CSV download for both roles; admin reading/location import and location export.
++- Admin row selection and bulk actions. Linked locations are deactivated rather
++  than deleted; only unlinked locations can be permanently deleted.
++
++## Technology and structure
++
++PHP 8+, PDO/MySQL, small PHP classes and functions, Bootstrap 5, local Leaflet,
++and plain JavaScript Fetch for asynchronous JSON requests. No framework,
++Composer, Node build, URL rewriting, or environment-file loader is required.
++Node is optional for JavaScript syntax checks, not for running the website.
++
++| Location | Responsibility |
+ | --- | --- |
+-| `assets/map-tiles/12/` | `assets/map-tiles/12/` |
+-| `assets/map-tiles/13/` | `assets/map-tiles/13/` |
+-| `assets/map-tiles/14/` | `assets/map-tiles/14/` |
+-| `assets/map-tiles/15/` | `assets/map-tiles/15/` |
+-| `assets/map-tiles/README.md` | `assets/map-tiles/README.md` |
+-
+-Simplest: copy the **entire `assets/map-tiles` folder**, with all 110 PNG images
+-(about 7.7 MiB). Keep the nested `{zoom}/{x}/{y}.png` names unchanged; for example,
+-`assets/map-tiles/15/27356/14867.png`. Do not copy old dashboard.php, config.php,
+-JavaScript controllers, or database files over this rebuild.
+-
+-If your local SmartSlope checkout is on sf2 and the folders are siblings, run
+-this from the project1 root:
+-
+-```bash
+-cp -R ../smartslope/assets/map-tiles ./assets/
+-```
+-
+-No new tiles need downloading. The map displays zooms 12–16 and uses native
+-zoom 15 images enlarged at zoom 16. Tile requests are limited to the Irisan
+-boundary's bounding box; there is no online tile fallback or CDN. Missing images
+-show a clear message. Retain attribution and check the original image provider's
+-redistribution terms before public hosting (the source tile README also notes this).
+-
+-Offline here means **without internet while PHP and MySQL still run** through
+-Herd or XAMPP. Opening a PHP file directly from Finder will not run the website.
+-The map, saved records, and location management work offline; fresh weather
+-and external address services require internet.
+-
+-### Check Phase 3 locally
+-
+-1. Copy the tile folder, start the local web/database servers, and log in.
+-2. Confirm both dashboards show the map, boundary, and initial pilot marker.
+-3. Turn off Wi-Fi and reload. Pan/zoom through levels 12–16; tiles should remain.
+-4. Select a saved marker and open its readings; an empty location has an empty list.
+-5. As admin, add a named point within Irisan, edit it, deactivate and reactivate it.
+-6. Confirm duplicate coordinates and outside-boundary coordinates show a message.
+-7. As resident, verify direct GET and POST to Management are denied.
+-8. Confirm deactivation preserves linked events and omits the point from the
+-   resident's map. Check layout and controls on a narrow/mobile viewport.
+-
+-## Phase 4: weather and assessment
+-
+-- The dashboard calls `api/readings.php` with POST when a marker/point is clicked
+-  or **Refresh weather** is pressed. It reloads the saved location after success.
+-  A normal page load, reading-detail link, or GET API request never saves data.
+-- Both roles may fetch weather. Only admins can edit location names or activation.
+-  Existing inactive coordinate pairs cannot be reactivated through the weather API.
+-- `includes/weather.php` makes a server-side HTTPS request to Open-Meteo with
+-  cURL (5-second connection timeout, 12-second total timeout, TLS verification on).
+-  PHP cURL must be enabled in your active Herd/XAMPP PHP installation. No API key,
+-  `.env`, new URL configuration, or database import is required.
+-- Provider timestamps are UTC Unix seconds. We request 73 past hourly steps and
+-  one current hourly step. The last completed-hour timestamp anchors the 1/24/72h
+-  precipitation sums; future steps never enter these totals. No missing values
+-  are replaced with zero. Invalid times/units/values or incomplete history reject
+-  the response before saving a reading.
+-- Each successful refresh inserts a reading (even when the provider observation
+-  time is unchanged). Existing records are retained. Repeated coordinates reuse
+-  their existing location. New unnamed points use an Irisan coordinate label;
+-  no online address lookup is included.
+-- `class/RiskAnalyzer.php` keeps the original `prototype-1` thresholds:
+-
+-| Category | 1h mm | 24h mm | 72h mm |
+-| --- | --- | --- | --- |
+-| High | 50 | 100 | 150 |
+-| Medium | 25 | 50 | 100 |
+-| Normal | 10 | 25 | 50 |
+-
+-The highest category with **any** threshold reached applies; below all thresholds
+-is low. These are academic screening rules, not validated Irisan landslide
+-thresholds. A low/normal category does not establish safety. Open-Meteo provides
+-weather-model precipitation, not readings from physical sensors at the map pin.
+-See the on-site Methodology page and https://open-meteo.com/en/docs.
+-
+-A current assessment needs consistent totals, a supported rule version, valid
+-observation/window timestamps, and a rainfall window less than 3 hours old.
+-Outdated or incomplete/legacy data stays visible as history without a current
+-category badge. The badge also expires while the page remains open. The database
+-`stale` column is not used as a clock. Historical count cards keep their labels.
+-
+-The existing event columns store totals, temperature, humidity, wind, weather
+-code, observation/window times, rule version, and the original provider JSON.
+-Forecast/soil-moisture fields stay untouched and are not used by this phase.
+-
+-### Weather checks on your computer
+-
+-1. Log in as each role and click the pilot marker while connected to the internet.
+-2. Confirm a new reading, summary, calculated category, and UTC times appear.
+-3. Press Refresh and confirm a new saved reading without a duplicate location.
+-4. Click a new point within Irisan; confirm its location and weather are saved.
+-5. Disconnect Wi-Fi and refresh weather: a readable error appears, old data stays
+-   in the database, and **View saved readings here** still works locally.
+-6. Confirm an old reading is marked outdated, never as a current warning.
+-7. Check `api/readings.php?location_id=YOUR_ID` while logged in: GET returns saved
+-   JSON. A logged-out request returns 401 JSON. POST is required to fetch/save.
+-
+-On a browser timeout the server may still finish saving: reload history before
+-retrying. Phase 6 adds CSV tools and admin bulk actions.
+-
+-## Phase 5: reports and management
+-
+-### Resident ground reports
+-
+-Open **Submit report**, choose a saved location or click within Irisan, and enter
+-an observation type, description, and observation time. The time input is in
+-**Asia/Manila** and is stored/displayed as UTC. Phone and email are required; nearby landmark is optional; contact fields initially use the resident's account details.
+-
+-A successful submission creates a `report` event with the signed-in resident's
+-ID and `pending` status. Submitted user IDs, roles, or status fields cannot
+-change that assignment. A new map point creates a coordinate-based location only
+-when the report is submitted; it does not call the weather provider. Existing
+-inactive points are rejected. Reports work without internet while PHP/MySQL run.
+-
+-**Your reports** shows only the signed-in resident's history and current review
+-status. Other residents' reports/contact details are not exposed. Reports are
+-user observations, not verified hazard data or an emergency response channel.
+-
+-### Administrator report review
+-
+-Use **Management → Review reports** or the pending-report dashboard link.
+-`users/admin/reports.php` provides All / Pending / Reviewed / Resolved filters.
+-**View** opens a Bootstrap dialog with the report, contact details, and review
+-status form. Save the selected status there. Reviewed/resolved records store the
+-reviewing admin and review time; returning to pending clears those review fields.
+-Resolved is an administrative workflow label, not a statement of physical safety.
+-
+-Delete report permanently removes that report after the browser confirmation.
+-Only POST requests perform updates/deletions. Guests and resident accounts cannot
+-access these pages or actions. No report action can modify a reading event.
+-
+-### Administrator reading management
+-
+-Admins see **Edit** and **Delete** beside saved readings on the dashboard and
+-readings page. Edit opens `users/admin/edit_reading.php`, with rainfall totals,
+-temperature, humidity, and wind. Rainfall totals must be nonnegative and consistent
+-(1h ≤ 24h ≤ 72h); the rainfall category is calculated separately from the administrator-selected risk status. Other weather values
+-may be left blank when unavailable.
+-
+-Editing preserves the location, original observation timestamp, and original
+-provider JSON. It labels the source `manual` and stores the most recent editor
+-and edit time in `adjustment_log`. The displayed assessment identifies these as
+-administrator-edited values. Editing does not make old observations fresh.
+-Delete reading permanently removes that reading after the browser confirmation.
+-Reading actions cannot modify report rows. Residents remain read-only here.
+-
+-The database connection sets its session timezone to UTC so `TIMESTAMP` fields
+-match the UTC labels even if MySQL's server timezone is Asia/Manila. No schema,
+-credentials, table, or existing-record migration is needed.
+-
+-### Phase 5 checks
+-
+-1. As resident, submit a report using a saved point, then another using a new map
+-   point. Confirm the success message and your own history; reload without
+-   submitting again to confirm there is no duplicate submission.
+-2. Try a missing description, future observation time, invalid contact details,
+-   and an outside-Irisan point. Expect a readable message and no report saved.
+-3. As admin, open each status tab. View the new report, set Reviewed, then Resolved,
+-   and confirm it moves to the correct tab. Verify the resident sees the new status.
+-4. Log in as a different resident and confirm the first resident's history is absent.
+-5. Edit a test reading. Confirm its category is recalculated, source is manual,
+-   and timestamp remains unchanged. An old reading must stay outdated.
+-6. Delete a disposable report and reading. Confirm each disappears, while the
+-   corresponding location remains. Cancel the browser confirmation once as well.
+-7. As resident, directly visit the admin review/edit URLs and try POST actions:
+-   each must be denied. Check both desktop and mobile layouts and the View dialog.
+-
+-## p4 refinements: addresses, risk status, and report maps
+-
+-Map clicks on both dashboards, the location editor, and the report form now look
+-up the nearest mapped address using Photon (OpenStreetMap data). Coordinates stay
+-visible. House numbers, street names, puroks/localities, and city information are
+-included only when available. A nearest mapped feature is an **approximate
+-address**, not proof of the exact clicked house. Check/correct suggested details.
+-
+-The local Leaflet tiles still work offline. Only a user-triggered address lookup
+-requires internet. Saved labels remain available offline, and lookup failure does
+-not block weather requests or report submission. Old coordinates-only locations
+-gain a saved address after lookup plus a successful weather refresh/report or an
+-admin save. Lists do not perform background/bulk geocoding.
+-
+-`api/address.php` is authenticated and Irisan-only. It uses a short timeout and
+-caches up to 100 coordinate results in the session, with at most one uncached
+-request per second per session. The Photon public demo permits moderate use but
+-may throttle requests and has no availability guarantee. No key is needed for
+-this local academic setup. Before larger-scale deployment use an appropriate
+-hosted/private provider. Only coordinates are sent; report messages and contact
+-details are not. Attribution is displayed on the map.
+-Provider documentation: https://github.com/komoot/photon and its `docs/api-v1.md`.
+-
+-No new database columns are needed: short names remain in `locations.name`,
+-resolved full addresses use `locations.landmark` (up to 255 characters), and
+-`purok` stores the optional house number / extra location information. The address helper formats existing
+-partial labels with Irisan/Baguio context. Existing manually entered landmarks
+-are not silently overwritten. In Management, a map click displays the resolved address below the map and fills
+-the name. Press Save to store it; there is no editable full-address input.
+-
+-Saved reading tables now say **Risk status**. Admin Edit reading includes Low,
+-Normal, Medium, and High. The selected status is stored in `risk_level`; the
+-calculated rainfall category is kept separately in the edit metadata and shown
+-on the assessment panel. Overrides are identified as administrator-selected,
+-not as automatic rainfall calculations. Observation times and freshness rules
+-remain unchanged. Invalid status values are rejected server-side.
+-
+-Report View dialogs now contain an offline map. New reports save their point
+-and address in the existing report event's `provider_payload` field, separately
+-from weather-event payloads. This snapshot stays fixed if a location is later
+-moved. Older reports without snapshots show their linked location and say so.
+-Missing coordinates/tiles produce a message instead of breaking the dialog.
+-
+-Report phone and email are required both in HTML and PHP, and are still prefilled
+-from the resident's account. No public contact disclosure or new roles are added.
+-
+-Check: click points on both dashboards, Management, and Submit report; try with
+-Wi-Fi off; save and reopen readings to check their address labels; save each risk
+-status; try blank contact fields; open/close/reopen report dialogs on desktop and
+-mobile. No schema import, tile recopy, or credential change is needed.
+-
+-## Database
+-
+-Use the existing `smartslope_mvp` database with `users`, `locations`, and `events`.
+-There are no schema changes or automatic migrations.
+-
+-`database/schema.sql` is an unchanged copy from SmartSlope `sf2`, commit
+-`a27af9280de02c061eee2f147edcecd33cbe98a4`. Import it **only for a new installation**.
+-Do not reimport it over your existing database. The fresh-install seed contains
+-an administrator account; change its password hash before using that account
+-beyond a local demo. Existing accounts and their password hashes continue to work.
+-
+-Registration writes the contact field to `users.phone` and always assigns `user`.
+-The session keeps only the account ID, username, full name, and role. Existing
+-sessions from the starter version must log in again.
+-
+-## Local setup
+-
+-Use PHP 8 with PDO MySQL and a running MySQL/MariaDB server. Configure these
+-constants in `config.php` to match your installation:
+-
+-| Constant | XAMPP example | Herd example |
+-| --- | --- | --- |
+-| `BASE_URL` | `'/project1'` | `''` when the project is served at `project1.test` |
+-| `DB_HOST` | `'127.0.0.1'` | `'127.0.0.1'` |
+-| `DB_PORT` | `3306` | Your MySQL service's TCP port |
+-| `DB_NAME` | `'smartslope_mvp'` | `'smartslope_mvp'` |
+-| `DB_USER`, `DB_PASS` | Your local credentials | Your local credentials |
+-
+-XAMPP: put the project in `htdocs/project1`, start Apache and MySQL, then open
+-`http://localhost/project1/` (include your Apache port if different).
+-
+-Herd: park/link the project folder in Herd, start your separate MySQL service,
+-set `BASE_URL` to an empty string, then open your configured Herd domain.
+-
+-Use no trailing slash in `BASE_URL`. All PHP includes use `__DIR__`; browser
+-links and redirects use `BASE_URL`. Neither a `.env` file nor rewrite rules
+-are required. Do not copy the MAMP FastCGI workaround into this project.
+-
+-## Authentication behavior
+-
+-- Successful login redirects to `users/admin/admin.php` or `users/user/user.php`.
+-- Registration checks required fields, email, contact format, field lengths,
+-  and duplicate username/email/phone. Passwords are hashed with `password_hash()`.
+-- Login checks passwords with `password_verify()` and uses a generic failure message.
+-- Guest requests stop before protected content. Regular users receive HTTP 403
+-  when requesting admin pages, including POST requests.
+-- Log Out submits POST to `logout.php`, clears session data and the session cookie,
+-  then redirects to login. GET does not log out a user.
+-- Report/contact details are not sent in regular users' dashboard HTML.
+-- Database errors are logged; pages display a short message without SQL details.
+-
+-As requested, this phase uses simple sessions without CSRF tokens or session ID
+-regeneration. This is an academic local-development baseline, not a hardened
+-public deployment. Basic HTML escaping remains where account/report text is shown.
+-
+-## Verify after applying
+-
+-1. Set `config.php` for your local server and database.
+-2. Register an account, log in, and confirm the user home opens.
+-3. Try empty fields, an invalid email, and duplicate account details. Confirm a
+-   readable message and no duplicate row.
+-4. Log in with an existing administrator and confirm the admin home opens.
+-5. While logged in as a user, open `users/admin/admin.php` and
+-   `users/admin/admin_panel.php` directly: both must deny access.
+-6. Log out, then revisit protected pages: each must return to login.
+-7. Open the existing shared dashboard and confirm saved readings load. Reports
+-   must not appear as readings; reading details must select the reading's ID.
+-8. Check navigation and Bootstrap assets under both your XAMPP subfolder and
+-   Herd root URL after adjusting `BASE_URL`.
+-
+-Syntax check from the project directory:
++| `config.php` | Database settings and browser `BASE_URL` |
++| `class/` | PDO connection, users, locations, events, reports, readings, risk, CSV and bulk SQL |
++| `includes/` | Session start, reusable views, boundary/address/weather functions |
++| `users/admin/` | Admin pages and actions |
++| `users/user/` | Resident dashboard and report form |
++| `api/` | Authenticated saved-reading/weather and address endpoints |
++| `assets/` | Local styles, JavaScript, Leaflet, boundary and PNG tiles |
++| `database/schema.sql` | Three-table installation schema |
++| `tools/verify.php` | Optional read-only terminal checks |
++| `docs/` | Application/database reference, test guide, course alignment |
++
++PHP includes use `__DIR__`; browser links use `BASE_URL`. These serve different
++purposes: a filesystem path cannot be used as a browser URL.
++
++## Install locally
++
++1. Use PHP 8.0+ with `pdo_mysql`, `curl`, JSON and sessions, and MySQL/MariaDB.
++2. Put the repository in the web server's document folder. For XAMPP, use
++   `htdocs/project1`; start Apache and MySQL. For Herd, serve/link the repository
++   as `project1.test` and start a separate MySQL server (Herd alone is not MySQL).
++3. For a **new database only**, import `database/schema.sql` in phpMyAdmin or
++   your MySQL client. It creates `smartslope_mvp`, the three tables, an admin and
++   an Irisan pilot point. Existing installations do not need a schema import.
++4. Edit the five database constants in `config.php` to match your server. The
++   checked-in port/password may not match yours. Typical XAMPP defaults are
++   port `3306`, user `root`, empty password; verify your actual installation.
++   Herd's database port/user/password come from your separately installed server.
++5. Set `BASE_URL = '/project1'` for `http://localhost/project1`, or `BASE_URL = ''`
++   for `http://project1.test`. Use no trailing slash. A custom port belongs in
++   the address bar, not in `BASE_URL`.
++6. Open `index.php` through that URL. On a fresh installation, the seed login is
++   `admin` / `admin123`. This is a demonstration credential: change its hash in
++   the database before sharing the installation. There is no password-change UI.
++   Generate a replacement with `password_hash()`; do not store plaintext.
++7. Register a resident account, then follow [the test guide](docs/TESTING.md).
++
++The offline tile set is already included: 110 PNGs under zoom directories
++12–15. Keep the `zoom/x/y.png` names. Zoom 16 enlarges zoom 15 images. Do not
++open PHP files directly in Finder: PHP and MySQL must be running even offline.
++
++## Verification
++
++From the project root:
+ 
+ ```bash
+-find . -name '*.php' -not -path './.git/*' -exec php -l {} \;
++php tools/verify.php
++php tools/verify.php --database
+ ```
+ 
+-Automated verification for this patch uses a disposable MariaDB database and
+-real PHP HTTP requests at root and subfolder URLs. This does not replace a
+-final check in your actual Herd and XAMPP installations.
+-
+-
+-## p5 map and location corrections
+-
+-- Report dialogs have an explicit map height and initialize after opening. The
+-  saved report point and local tiles load independently of the boundary overlay.
+-  Reopening resizes the same map. Missing tiles or coordinates have a visible message.
+-- Map colors use the latest unarchived saved reading: low green, normal blue,
+-  medium amber, high red, and no reading grey. Editing that reading changes the
+-  marker on the next page load. Historical reading edits do not replace a newer
+-  reading. Report review status (pending/reviewed/resolved) is separate from risk.
+-- Management offers an active saved-location dropdown. Choosing a marker or a
+-  saved option edits that location. Clicking a new point starts a new location;
+-  it does not silently move the previously selected location.
+-- Full addresses appear automatically when the address service returns one;
+-  the editable full-address input is removed. The optional house/details input
+-  reuses `purok`. Existing addresses are retained when coordinates stay the same;
+-  moving coordinates clears an old address unless a new lookup is available.
+-- Inactive locations stay in the management table for reactivation but are
+-  excluded from selection maps and dropdowns. Historical report maps retain the
+-  original reported point, even when its linked location is later deactivated.
+-- Residents can choose active saved locations or click a new point. Slow address
+-  responses cannot replace a newer selection. Saving waits for the lookup to finish.
+-
+-No database import, migration, credentials change, or replacement tile download
+-is needed. Detailed address lookup still needs internet and available mapped data;
+-it cannot guarantee a house-level address for every point. Offline saved labels
+-and coordinates remain usable.
+-
+-Verification: PHP syntax, JavaScript syntax, disposable MariaDB/HTTP tests at root
+-and `/project1` URLs, and mocked map interaction tests. Check the View dialog,
+-selection, and marker colors in your actual browser after applying the patch;
+-these automated checks do not constitute a browser rendering test.
+-
+-
+-## Phase 6: CSV and bulk management
+-
+-- Readings page: both roles can download all saved, unarchived readings. Only
+-  admins can import. Location Management: admins can download/import locations.
+-- Download a CSV from this version first; imports require that exact header and
+-  format marker. Maximum upload: 2 MB and 2000 data rows. Excel-friendly text
+-  prefixes are added on export and removed on import. Do not change the header.
+-- Locations match by coordinates (six decimal places). Existing locations are
+-  skipped, never renamed/reactivated by import. Readings match by location and
+-  UTC observation time, including archived records. Duplicate readings and
+-  readings for inactive locations are skipped. Missing locations are created
+-  from the CSV's location fields.
+-- Reading imports retain saved values and risk status but are marked manual and
+-  historical. They do not claim to be a fresh provider assessment. CSV is a data
+-  exchange format, not a full backup of API payloads or edit history.
+-- Invalid rows reject the whole file. Database failures roll back the import.
+-  No schema changes or database re-import are needed.
+-- Admin data tables have row checkboxes and Select all (displayed rows only).
+-  Delete selected permanently removes selected readings/reports. Location bulk
+-  actions can activate, deactivate, or delete unlinked locations. Linked locations
+-  are skipped on delete to preserve their events. Use deactivate to hide them
+-  from selection maps. Maximum bulk selection: 500 rows.
+-- Read-only methodology tables and resident tables have no deletion controls.
+-
+-Quick local check: export and re-import (duplicates should be skipped); import
+-one new row; try an invalid CSV; select two readings/reports and delete them;
+-try deleting a linked location, then deactivate/reactivate it. Confirm a resident
+-can download readings but cannot import or access bulk actions. Keep a database
+-backup before testing permanent deletion with real project data.
++Use the PHP executable from your installation if `php` is not on PATH.
++XAMPP Windows example: `C:\xampp\php\php.exe tools\verify.php --database`.
++The script performs read-only checks; it does not create/delete test records.
++A pass is not proof that browser interactions work. Complete the step-by-step
++[acceptance tests](docs/TESTING.md) and record actual results before submission.
++
++## Documentation
++
++- [Application, API and database reference](docs/APPLICATION.md)
++- [Step-by-step tests and sign-off record](docs/TESTING.md)
++- [Course alignment and submission checklist](docs/REQUIREMENTS.md)
++- [Executed verification record](docs/VERIFICATION.md)
++
++## Important limits
++
++Rainfall rules are prototype rules, not calibrated Irisan landslide thresholds.
++“Low” and “normal” do not establish safety. There are no physical sensors,
++SMS alerts, payment integration, AI, or automated evacuation instructions.
++Weather comes from Open-Meteo; addresses come from Photon/OpenStreetMap and
++may identify a nearby mapped feature rather than the exact house.
++
++The session model is intentionally basic. Password hashing, prepared statements,
++output escaping, role checks and input checks are present. CSRF tokens, login
++session-ID regeneration and login throttling are not implemented. This is a
++local academic prototype, not a production-security certification. Keep SQL
++exports, credentials and reports private; a public deployment needs additional
++security and a tile-source/redistribution review.
+diff --git a/class/RiskAnalyzer.php b/class/RiskAnalyzer.php
+index 062c9bc..a5f56f5 100644
+--- a/class/RiskAnalyzer.php
++++ b/class/RiskAnalyzer.php
+@@ -1,5 +1,5 @@
+ <?php
+-// These are the original SmartSlope prototype thresholds, not validated warnings.
++// These are SmartSlope prototype thresholds, not validated warnings.
+ class RiskAnalyzer {
+     const VERSION = 'prototype-1';
+     const MAX_AGE = 10800; // Three hours, measured from the rainfall window end.
+diff --git a/config.php b/config.php
+index 635edc2..6451f26 100644
+--- a/config.php
++++ b/config.php
+@@ -8,16 +8,3 @@ const DB_PORT = 8889;
+ const DB_NAME = 'smartslope_mvp';
+ const DB_USER = 'root';
+ const DB_PASS = 'root';
+-
+-// Existing dashboard display helpers.
+-function check_role() {
+-    return ($_SESSION['ROLE'] ?? '') === 'admin' ? '' : 'hidden';
+-}
+-
+-function check_status($status) {
+-    return $status ? 'Outdated' : 'Current';
+-}
+-
+-function check_report_status($status) {
+-    return $status === 'pending' ? 'Review' : 'Resolve';
+-}
+diff --git a/docs/APPLICATION.md b/docs/APPLICATION.md
+new file mode 100644
+index 0000000..58762b6
+--- /dev/null
++++ b/docs/APPLICATION.md
+@@ -0,0 +1,195 @@
++# SmartSlope Version 1.0 — Application reference
++
++## Purpose and scope
++
++Provide a single-area academic interface for viewing weather-based rainfall
++screening and collecting resident observations in Barangay Irisan. Resident
++reports provide context, not automatic hazard confirmation. Administrators
++manage records and review submissions. No measured accuracy, adoption, revenue
++or sensor deployment is claimed.
++
++## Roles and data flow
++
++| Action | Resident | Admin |
++| --- | --- | --- |
++| Map, saved readings/details, weather refresh | Yes | Yes |
++| Reading CSV download | Yes | Yes |
++| Submit report, see own history | Yes | No resident form |
++| See all reports/contact details; review/delete | No | Yes |
++| Location create/edit/activate/deactivate | No | Yes |
++| Edit saved reading values/risk, delete readings | No | Yes |
++| Reading/location CSV import, location export | No | Yes |
++| Bulk data actions | No | Yes |
++
++A map selection performs address lookup, then (on dashboards) posts a weather
++request. PHP validates coordinates and provider data, calculates rainfall totals,
++saves the event and returns JSON. The browser reloads saved data. Normal page
++loads do not fetch/save weather. Failed providers preserve existing readings.
++
++The report form selects an active location or creates one for valid new
++coordinates on successful submission. A report event stores the point/address
++snapshot in `provider_payload`. Reports do not affect calculated rainfall risk.
++
++## Routes
++
++| File | Purpose |
++| --- | --- |
++| `index.php` | Register/login; server assigns new registrations role user |
++| `dashboard.php` | Redirect to role-specific dashboard |
++| `users/admin/admin.php`, `users/user/user.php` | Role-specific dashboard entry points |
++| `users/admin/admin_panel.php` | Location management |
++| `users/user/submit_report.php` | Resident report form and own history |
++| `users/admin/reports.php` | Report filters, View map, review and deletion |
++| `readings.php` | Saved history, detail panel, admin deletion and CSV controls |
++| `users/admin/edit_reading.php` | Admin values and saved-risk editing |
++| `users/admin/bulk.php` | Admin POST-only selected-row actions |
++| `csv.php?kind=readings` or `kind=locations` | GET download / admin POST multipart `csv_file` import |
++| `methodology.php` | Rainfall rules, data sources and limitations |
++| `logout.php` | POST logout |
++
++## JSON endpoints
++
++`api/readings.php`: authentication required. GET `location_id` loads saved data;
++POST `location_id` or `lat` + `lng` refreshes weather. Successful JSON contains
++`location_id`, `saved_id` (null for GET), `reading`, and `assessment`. Assessment
++contains status, category, expires_at, calculated_category and adjusted.
++Errors use `error`: 400 invalid/inactive point, 401 unauthenticated, 405 method,
++502 provider/runtime failure, 503 database failure or 500 unexpected processing.
++
++`api/address.php`: authenticated GET `lat` + `lng`; returns `name` and `address`
++when available. A failed detailed lookup can return HTTP 200 with empty address
++and an explanatory error. This is a usable coordinate selection, not a crash.
++Addresses are cached in the session (maximum 100 entries) and uncached lookups
++are limited to one per second per session. It is not a global provider throttle.
++
++## Rainfall screening
++
++| Category | 1h threshold | 24h threshold | 72h threshold |
++| --- | --- | --- | --- |
++| High | 50 mm | 100 mm | 150 mm |
++| Medium | 25 mm | 50 mm | 100 mm |
++| Normal | 10 mm | 25 mm | 50 mm |
++| Low | Below every threshold | Below every threshold | Below every threshold |
++
++Highest qualifying category wins if any window reaches its threshold. Values
++must be finite, nonnegative and ordered 1h ≤ 24h ≤ 72h. These are prototype
++software rules, not published/calibrated Irisan alert thresholds. The rule ID is
++`prototype-1`; this does not indicate a prior application release.
++
++Hourly precipitation comes from Open-Meteo. Only completed hourly samples are
++summed, ending at the observation hour in UTC. Complete 72-hour history is
++required. Current assessment needs compatible metadata and a window younger
++than three hours; missing/legacy/imported metadata is incomplete, not fresh.
++Admin-selected risk is kept distinct from calculated rainfall category.
++Map colors represent the latest unarchived **saved** reading, which can be old.
++
++## Database relationships
++
++Exactly three tables: `users`, `locations`, `events`. One user can have many
++report events; one location can have many reading/report events. `type` separates
++reading and report rows. Most type-specific columns are nullable because they
++share one events table. This keeps the schema small but requires every action
++to constrain event type. It is not a separate sensor or alerts database.
++
++```mermaid
++erDiagram
++    users ||--o{ events : submits
++    locations ||--o{ events : records
++```
++
++`events.user_id` is optional and deletes set it NULL. Deleting a location at the
++SQL level cascades to its events; application bulk delete prevents deleting
++linked locations. Deactivation changes visibility without deleting history.
++`reviewed_by` is an ID value but the schema does not declare a foreign key for it.
++
++The following dictionary reflects database/schema.sql. Fields retained in the
++schema but unused by the UI are identified; do not remove them during setup.
++
++### users
++
++| Field | SQL definition | Meaning |
++| --- | --- | --- |
++| `id` | `INT UNSIGNED NOT NULL AUTO_INCREMENT` | Auto-increment primary key. |
++| `full_name` | `VARCHAR(100) NOT NULL` | Account display name. |
++| `username` | `VARCHAR(50) NOT NULL` | Unique login name. |
++| `email` | `VARCHAR(254) NOT NULL` | Unique account email. |
++| `phone` | `VARCHAR(20) NOT NULL` | Unique account contact number. |
++| `password` | `VARCHAR(255) NOT NULL` | Hash generated by password_hash(); never plaintext. |
++| `role` | `ENUM('admin', 'user') NOT NULL DEFAULT 'user'` | admin or user; registration assigns user. |
++| `created_at` | `TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP` | Creation timestamp; connections use UTC. |
++
++### locations
++
++| Field | SQL definition | Meaning |
++| --- | --- | --- |
++| `id` | `INT UNSIGNED NOT NULL AUTO_INCREMENT` | Auto-increment primary key. |
++| `name` | `VARCHAR(150) NOT NULL` | Saved location name. |
++| `purok` | `VARCHAR(100)` | Optional house number / extra location information (UI label). |
++| `landmark` | `VARCHAR(255)` | Saved mapped address / landmark. |
++| `lat` | `DECIMAL(9,6)` | Latitude; application restricts selected points to Irisan. |
++| `lng` | `DECIMAL(9,6)` | Longitude; unique pair with latitude. |
++| `susceptibility` | `ENUM('very_high','high','moderate','low','debris_flow','unknown') DEFAULT 'unknown'` | Stored metadata; not used in Version 1.0 rainfall calculation. |
++| `active` | `TINYINT(1) DEFAULT 1` | 1 active; 0 hidden from selection maps/dropdowns. |
++| `created_at` | `TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP` | Creation timestamp; connections use UTC. |
++
++### events
++
++| Field | SQL definition | Meaning |
++| --- | --- | --- |
++| `id` | `INT UNSIGNED NOT NULL AUTO_INCREMENT` | Auto-increment primary key. |
++| `location_id` | `INT UNSIGNED NOT NULL` | Required FK to locations.id; SQL ON DELETE CASCADE. |
++| `user_id` | `INT UNSIGNED` | Optional FK to users.id; ON DELETE SET NULL. |
++| `type` | `ENUM('reading','report') NOT NULL` | reading or report; actions must constrain this field. |
++| `rainfall_1h` | `DECIMAL(7,2)` | Precipitation total in mm over one completed hour. |
++| `rainfall_24h` | `DECIMAL(7,2)` | Precipitation total in mm over 24 completed hours. |
++| `rainfall_72h` | `DECIMAL(7,2)` | Precipitation total in mm over 72 completed hours. |
++| `rainfall_forecast_24h` | `DECIMAL(7,2)` | Reserved; not used by this release. |
++| `precipitation_probability_24h` | `TINYINT UNSIGNED` | Reserved; not used by this release. |
++| `soil_moisture_9_27cm` | `DECIMAL(6,4)` | Reserved; not used by this release. |
++| `soil_moisture_27_81cm` | `DECIMAL(6,4)` | Reserved; not used by this release. |
++| `risk_level` | `ENUM('low','normal','medium','high') DEFAULT 'low'` | Saved low/normal/medium/high category; may be admin-selected. |
++| `temperature` | `DECIMAL(5,2)` | Temperature in degrees Celsius. |
++| `humidity` | `DECIMAL(5,2)` | Relative humidity in percent. |
++| `wind_speed` | `DECIMAL(6,2)` | Wind speed in km/h. |
++| `weather_code` | `INT` | Provider WMO weather code. |
++| `observed_at` | `DATETIME` | Weather observation timestamp, UTC. |
++| `source` | `ENUM('openmeteo','manual') DEFAULT 'openmeteo'` | openmeteo or manual (including CSV). |
++| `message` | `TEXT` | Resident observation text. |
++| `contact_phone` | `VARCHAR(20)` | Required by report form. |
++| `contact_email` | `VARCHAR(254)` | Required by report form. |
++| `house_landmark` | `VARCHAR(255)` | Optional report-specific directions. |
++| `status` | `ENUM('pending','reviewed','resolved') DEFAULT 'pending'` | Report workflow: pending/reviewed/resolved. |
++| `rule_version` | `VARCHAR(40) NULL` | Rainfall rule identifier; nullable for legacy/CSV records. |
++| `rainfall_window_end` | `DATETIME NULL` | Completed-hour end time, UTC. |
++| `provider_payload` | `LONGTEXT NULL` | Reading: provider JSON; report: report_location point/address snapshot. |
++| `adjustment_log` | `LONGTEXT NULL` | Admin edit/import metadata JSON. |
++| `report_type` | `VARCHAR(30) NULL` | cracks/landslide/drainage/other, validated in PHP. |
++| `occurred_at` | `DATETIME NULL` | Report observation time stored UTC; form uses Manila time. |
++| `reviewed_by` | `INT UNSIGNED NULL` | Reviewing admin ID; no declared FK. |
++| `reviewed_at` | `DATETIME NULL` | Review timestamp, UTC. |
++| `created_at` | `TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP` | Creation timestamp; connections use UTC. |
++| `archived` | `TINYINT(1) DEFAULT 0` | Reading list excludes 1; no archive UI. |
++| `stale` | `TINYINT(1) DEFAULT 0` | Retained legacy flag; assessment freshness is computed from timestamps. |
++
++### Keys and constraints
++
++users: unique username/email/phone. locations: unique latitude/longitude pair.
++events: indexes on location_id, user_id, type, risk_level and archived, plus primary
++key. Imported duplicates use location and observed_at checks in application code;
++there is no database unique constraint on that event pair. Concurrent imports
++are not guaranteed duplicate-free. Admin bulk actions accept up to 500 IDs.
++
++## External dependencies and operations
++
++Open-Meteo weather endpoint and Photon reverse lookup require internet and PHP
++cURL. Providers may fail, limit requests or change. Errors are surfaced without
++replacing saved weather. Address accuracy depends on mapped coverage. Local
++Bootstrap and Leaflet are served without CDNs. Preserve bundled licenses and
++OpenStreetMap attribution; tile image redistribution provenance needs confirmation
++before public hosting. The repository's tile README records that limitation.
++
++Use database exports for backups, not CSV alone. No password-reset/change UI,
++email/SMS delivery, scheduled weather polling, realtime cross-tab push updates,
++payments, sensor ingestion, location susceptibility calibration or production
++monitoring is implemented. Sessions do not regenerate IDs and no CSRF token
++scheme/login throttling is provided; public deployment requires hardening.
+diff --git a/docs/REQUIREMENTS.md b/docs/REQUIREMENTS.md
+new file mode 100644
+index 0000000..640d1f3
+--- /dev/null
++++ b/docs/REQUIREMENTS.md
+@@ -0,0 +1,89 @@
++# SmartSlope Version 1.0 — Course alignment and submission checklist
++
++This is an implementation-to-materials mapping, not a teacher's grading decision.
++The supplied materials do not establish every final marking criterion. Confirm
++submission format, required demonstrations and deadlines with the instructor.
++
++## WEBSYS1
++
++Source: supplied Syllabus.pdf, course learning-plan pages printed 5–7 of 19.
++
++| Topic/outcome | Implementation evidence | Status / action |
++| --- | --- | --- |
++| PHP basics, forms and functions | Page handlers, boundary/weather/address functions | Implemented; explain control flow in defense |
++| PDO/MySQL CRUD | class/db.php, users/locations/reports/readings/CSV classes | Implemented; show create/read/update/delete with test records |
++| Classes and objects | Small classes extending db; independent RiskAnalyzer | Implemented; show object creation and prepared SQL |
++| AJAX and API/JSON integration | assets/js/weather.js and location-map.js; api/readings.php and api/address.php | Implemented with Fetch |
++| jQuery | No application use of jQuery; Bootstrap internals mentioning it are not evidence | Confirm whether instructor requires an explicit jQuery implementation; do not claim this topic is implemented |
++| SQL injection and password storage | Prepared parameters, password_hash/password_verify | Implemented, subject to testing |
++| XSS and input handling | HTML output escaping, textContent, field/coordinate checks | Implemented in application flows; not a formal penetration test |
++| Secure coding practices | Role guards, safe error messages, POST mutation checks | Partial: no CSRF tokens, login session-ID regeneration or login throttling. Do not claim production security |
++| Complete dynamic web project | Two roles, saved weather, report review, maps, CSV and bulk management | Local acceptance evidence required; see TESTING.md |
++
++The syllabus teaches jQuery and security best practices. Fetch-based AJAX is not
++jQuery, and basic sessions do not provide all security protections. Resolve any
++strict instructor requirement before declaring full course compliance. The
++project deliberately keeps its current simple stack; this document does not
++silently add a framework or new authentication design.
++
++## IMDBSE2
++
++Source: supplied IMDBSE2 RELATIONAL ALGEBRA PRELIMS.pdf, FINAL PROJECT slide
++(PDF page 3). It requests a functional front end and database CRUD application;
++progress/contribution, presentation, output and peer evaluation also matter.
++
++| Evidence | Where to demonstrate |
++| --- | --- |
++| Functional front end and database-backed behavior | Login, both dashboards, location/report/reading pages |
++| CRUD | Add/edit/read locations; submit/read/review/delete reports; fetch/import/read/edit/delete readings |
++| Relational design | database/schema.sql and docs/APPLICATION.md dictionary/relationships |
++| Query explanation | JOIN location labels to events; WHERE type/status; ORDER BY observation/id |
++| Integrity | FK relations, unique accounts/coordinates, linked-location delete protection |
++| Individual contribution and progress | Team's real Git commits and individual explanation; not generated claims |
++| Presentation and peer evaluation | Team prepares these separately using the instructor's forms |
++
++There are three tables. The events table combines two record types to keep the
++schema small; explain its nullable columns and type-specific SQL. Reserved
++weather/soil columns do not mean sensors or forecasts are implemented.
++
++## Startup materials
++
++Source: supplied Startup.pdf (scanned eight-page extract), especially PDF pages
++6–7 covering presentation and concept-note content. Treat this as the supplied
++reference, not confirmation that its competition eligibility/rules are current.
++
++A working website alone does not complete the startup deliverables. Prepare:
++
++- Startup logo; founder/team introduction with real contributions.
++- Problem and beneficiary evidence (interviews/references; no invented demand).
++- A deck covering problem, SDG priority, target segment, proposed business model,
++  solution/features, use of funds and actual progress/traction.
++- A concept note covering summary, problem background, solution, objectives,
++  beneficiaries, value proposition, business model, market evidence, operations
++  and estimated funding needs.
++- Any institution/competition-specific clearance, mentor and submission items
++  requested by the instructor. These are not generated by the application.
++
++Proposed business hypothesis for discussion: optional hosted record-management
++and support for barangay/community administrators, with resident submission
++access. Potential charges would fund hosting, maintenance and training. This is
++an unvalidated hypothesis; no prices, customers or revenue are established.
++The paid value would be administration/support, not a claim of accurate warning
++prediction. Payment collection, subscription management and sales are outside
++Version 1.0. Validate willingness to pay, operational ownership and costs first.
++
++## Submission package
++
++- [ ] Source code, bundled dependency licenses, three-table SQL and Version 1.0 docs.
++- [ ] Configured local demo; installation instructions tested from a clean setup.
++- [ ] Completed TESTING.md result record for Herd/XAMPP, with fictional data.
++- [ ] Screenshots of both dashboards, resident selection, report map, CSV and bulk actions.
++- [ ] Database diagram/dictionary and a brief CRUD demonstration.
++- [ ] Actual team contribution evidence, presentation and peer-evaluation items.
++- [ ] Instructor confirmation about jQuery and security scope.
++- [ ] Startup deck/concept note/logo if part of the submitted assessment.
++- [ ] Private credentials and personal reports removed from the submitted database export.
++
++Passing code checks supports functional readiness. It does not prove browser
++rendering on the student's computer, fulfill missing presentation artifacts,
++certify production security, or validate a landslide-warning model.
+diff --git a/docs/TESTING.md b/docs/TESTING.md
+new file mode 100644
+index 0000000..ca78138
+--- /dev/null
++++ b/docs/TESTING.md
+@@ -0,0 +1,185 @@
++# SmartSlope Version 1.0 — Verification guide
++
++## 1. Prepare the test installation
++
++1. Use a disposable database or back up your current database. Bulk deletion is
++   permanent. CSV is not a full database backup.
++2. Follow the README setup. Start PHP/web server and MySQL. Confirm `BASE_URL`
++   and database credentials. Do not re-import schema.sql into your working data.
++3. Use two browser profiles or a regular/private window: one admin and one
++   resident. Create a second resident for privacy checks. Use fictional contact
++   details and clearly label test observations. Do not submit real emergency reports.
++4. Record the date, browser, PHP version (`php -v`), database version, commit
++   (`git rev-parse HEAD`) and URL in the result record below.
++5. Run `php tools/verify.php --database`. Investigate every FAIL. SKIP means the
++   relevant check has not run. These checks never change database rows.
++6. If Node is installed, check the app JavaScript:
++
++```bash
++node --check assets/js/location-map.js
++node --check assets/js/weather.js
++node --check assets/js/report-maps.js
++node --check assets/js/bulk-select.js
++```
++
++7. Open the browser Developer Tools Console and Network tabs. Clear old output.
++   Keep them open while testing. Note the HTTP response when an action fails;
++   distinguish an expected validation/provider error from a PHP crash.
++
++## 2. Authentication and permissions
++
++| Test | Steps | Expected result |
++| --- | --- | --- |
++| A1 | Register a new resident with all fields. Log in. | Success message; user dashboard; role is user in DB even if a request supplies `role=admin`. |
++| A2 | Repeat a username/email/phone, try malformed email, short password or blank fields. | Helpful message; no duplicate account or raw SQL/stack trace. |
++| A3 | Try a wrong password, then the correct one. | Wrong password rejected; correct login succeeds. |
++| A4 | Log in as admin in the other window. | Admin dashboard and Management links appear. |
++| A5 | As resident, open `/users/admin/admin_panel.php`, `/users/admin/reports.php`, `/users/admin/edit_reading.php?id=1`. | Access denied, HTTP 403. Hiding buttons alone is not the check. |
++| A6 | Log out, then reload a protected dashboard. Open `/api/readings.php?location_id=1` logged out. | Dashboard redirects to login; API returns 401. Logout requires POST. |
++| A7 | Inspect a newly registered user's password column. | A password hash, never the typed plaintext. Do not screenshot passwords/hashes in public evidence. |
++
++## 3. Maps, addresses and weather
++
++1. Open both dashboards. Check the brown Irisan boundary, local tiles, zoom,
++   active markers, legend and layout. Inspect Network: tiles should be local
++   `assets/map-tiles/...png`, not an online tile CDN.
++2. Click a point clearly inside Irisan. The selected coordinates should match
++   the point, and a mapped address should appear when the provider has data.
++   Nearby addresses can be approximate; no house number is guaranteed.
++3. With internet, let weather finish. A successful request saves a reading and
++   reloads the selected location. Verify rainfall, UTC time, source and assessment.
++4. Press Refresh once. Verify one additional reading after a successful request.
++   Reload the page without clicking: it must not save another reading.
++5. Use View saved readings here. Confirm the selected location's history, then
++   View all to see the full list. Details should show that reading's weather/source.
++6. Click outside the boundary. Confirm rejection and no new database reading.
++7. Click point A then B rapidly during address lookup. B must remain selected
++   even if A's address response arrives later. No A address should overwrite B.
++8. Disconnect internet while leaving PHP/MySQL running. Reload the page and
++   open saved history: local tiles and saved data remain visible. Refresh should
++   report provider failure without deleting old data. A new unmapped address
++   may be unavailable; coordinates still identify the selected point.
++9. Reconnect. Repeat a successful refresh. Do not treat a timeout as proof that
++   no write occurred: reload saved history before retrying.
++10. On an admin-edited latest reading, choose low, normal, medium and high in
++    turn. Reload the map after each save: green, blue, amber and red respectively.
++    The saved category must match; the calculated category is displayed separately
++    when an assessment is available. Editing an older row does not override a newer row.
++11. The CLI script checks threshold and three-hour expiry boundaries. Also inspect
++    an old reading in the browser: history can retain its colored saved category,
++    but the current assessment must say outdated/incomplete rather than fresh.
++
++## 4. Location management
++
++1. In Management choose an active saved location. Verify name, optional house
++   information, coordinates and selected address.
++2. Click a new point inside the map. This starts an Add location form. Save it
++   with a unique test name and optional house information. There is no editable
++   full-address input; a resolved address is saved automatically when available.
++3. Select the saved row again and edit its name/house information. Confirm the
++   existing ID is updated rather than a duplicate inserted.
++4. Try blank name, outside coordinates and an existing coordinate pair. Confirm
++   validation/duplicate feedback; no fatal error or unintended overwrite.
++5. Deactivate the test location. Reload both dashboards, Management's map and
++   the resident report picker: it must disappear from active maps/dropdowns,
++   but remain in the management table and historical reports/readings.
++6. Reactivate it. Confirm it returns. Select two test locations and bulk
++   deactivate/reactivate. Check Select all applies only to displayed rows.
++7. Select an unlinked test location and a location with a reading/report. Choose
++   bulk Delete: the unlinked one disappears; the linked one is skipped. Its
++   events remain. Deactivate the linked location if it should be hidden.
++
++## 5. Resident reports and admin review
++
++1. As resident A, choose a saved location in Submit report. Visible read-only
++   latitude, longitude and address fields must fill automatically.
++2. Click another map point. Fields and selection must switch to that point.
++   Select a saved option again: the marker and fields must agree with that option.
++3. Leave phone/email blank or enter invalid email. Submission must fail without
++   creating a report. The chosen point and written message should remain.
++4. Submit valid required details, observation type and Manila observation time.
++   Verify a success message and a new entry in Your reports. The stored/displayed
++   observation time is UTC (Manila time minus eight hours).
++5. Log in as resident B. A's private report history/contact details must not
++   appear. Shared weather/location records remain visible by design.
++6. As admin, open Pending reports and View the submitted report. Check contact,
++   description and the map at the original submitted coordinates. Close/reopen
++   the modal; the map must stay correctly sized. Repeat on a narrow viewport.
++7. Edit/move/deactivate the linked location. Reopen the report. New reports retain
++   their submission point/address; older reports lacking a snapshot use the linked
++   location and are labeled accordingly.
++8. Change Pending to Reviewed to Resolved. Check each filter and dashboard count.
++   Review status does not change rainfall risk or certify safety.
++9. Delete one test report via its dialog, then select two different test reports
++   and Delete selected. Verify only those reports disappear. Test empty selection:
++   it must show a message and delete nothing.
++
++## 6. Reading management and CSV
++
++1. Edit a test reading as admin. Change rainfall/weather within valid ranges and
++   choose a saved risk. Save and reopen. Verify stored values, manual source and
++   preserved observation time. Invalid values must not be saved.
++2. Delete one test reading, then two with checkboxes. Verify only selected
++   reading IDs disappear. Report records must remain.
++3. As resident, download the readings CSV. As admin, download readings and
++   locations. Headers and rows must appear without HTML, warnings or login pages.
++4. Import each unchanged download as admin. Existing records should be skipped,
++   not duplicated, renamed or reactivated. Residents must have no import controls;
++   a direct resident POST to `csv.php` must return 403.
++5. To test new location import, copy a locations CSV, retain its exact header and
++   format marker, and add a row with a unique coordinate inside Irisan and a test
++   name. Import it. Verify the location appears. Use straight CSV quotes; do not
++   change the header names or sheet-save it as XLSX.
++6. For a new reading, copy a readings CSV row and use a different valid UTC
++   `observed_at_utc`, e.g. `2025-01-02 03:04:05` if unused at that location.
++   Import. Verify its weather values and saved risk, source manual, and historical
++   rather than fresh assessment. Repeat: duplicate is skipped.
++7. Try a wrong header, invalid risk, outside coordinates and a valid row followed
++   by an invalid row. The whole file must be rejected with no partial import.
++   Try an empty/header-only file and a non-CSV file: clear error, no database changes.
++8. Confirm quoted commas and Unicode location names survive export/import. Text
++   cells have a leading apostrophe for spreadsheet handling; import removes that
++   prefix. Export/import is not a full backup of provider payloads/edit history.
++9. Limits: upload at most 2 MB and 2000 data rows; select at most 500 bulk rows.
++   Larger downloads must be split into valid files before import. Readings match
++   by location coordinates plus UTC observation time, including archived rows.
++   Inactive locations' reading imports are skipped. Invalid files are rejected.
++
++## 7. Layout, deployment and error checks
++
++- Test desktop and a roughly 375px-wide viewport. Check navigation, readable
++  form labels, horizontal table scrolling, dialogs, map controls and buttons.
++- Inspect Console for uncaught JavaScript errors and Network for missing CSS,
++  JavaScript, GeoJSON and PNG files. Investigate unexpected HTTP 500 responses.
++- Test once at Herd root URL and once at XAMPP's `/project1` subfolder. Match
++  BASE_URL each time. The CLI PHP version can differ from the web server's PHP.
++- In an isolated test installation, stop MySQL and open a DB-dependent page:
++  expect the application's safe error, no credentials/SQL stack trace. Restart it.
++- Inspect your PHP/web-server logs after tests for warnings/fatals. Do not edit
++  production/server configuration to reproduce a failure in your only installation.
++- Refresh an open second browser tab after changing risk or active status: maps
++  are not pushed live across tabs. Check blank tables after deleting all test rows.
++
++## 8. Result record and submission gate
++
++Make a copy of this table for each local environment. Do not pre-mark PASS.
++Attach screenshots with fictional data and relevant log extracts; avoid passwords.
++
++| Item | Actual result / evidence |
++| --- | --- |
++| Tester, date, commit | Not yet recorded |
++| URL, OS, PHP, database, browser | Not yet recorded |
++| CLI check output / skipped checks | Not yet recorded |
++| Authentication/permissions A1–A7 | Not yet recorded |
++| Maps, addresses, weather/freshness | Not yet recorded |
++| Location CRUD and bulk operations | Not yet recorded |
++| Reports, privacy, modal map | Not yet recorded |
++| Reading edits, CSV, bulk deletion | Not yet recorded |
++| Offline and provider failure | Not yet recorded |
++| Desktop/mobile and both URL layouts | Not yet recorded |
++| Remaining issues and owner | Not yet recorded |
++| Final local acceptance | Pending |
++
++The project is ready for a classroom demonstration when these local checks pass
++and the remaining course deliverables in REQUIREMENTS.md are prepared. Automated
++checks alone do not certify production security or landslide prediction accuracy.
+diff --git a/docs/VERIFICATION.md b/docs/VERIFICATION.md
+new file mode 100644
+index 0000000..dc24ff5
+--- /dev/null
++++ b/docs/VERIFICATION.md
+@@ -0,0 +1,44 @@
++# SmartSlope Version 1.0 — Verification record
++
++Review date: 17 October 2026. Source reviewed: macJil/project1, branch p6,
++commit `dad5207a9c8ce9496845bacefbd5ac37fc9fc204`, plus this documentation/checker patch.
++
++## Executed checks
++
++| Check | Result | Scope |
++| --- | --- | --- |
++| HTTP and database regression | 721 assertions passed | Disposable MariaDB; actual PHP requests at root and /project1 URLs |
++| Weather/risk unit checks | 38 assertions passed | Thresholds, window processing and freshness with deterministic inputs |
++| Map/address interaction checks | 38 assertions passed | Mock browser/Leaflet APIs; selection, address races, dropdown fields, report-map logic |
++| Shipped tools/verify.php without DB | 71 checks, zero failures | PHP syntax/extensions, bundled assets/tiles, sample boundary and risk cases |
++| Shipped tools/verify.php --database | Passed inside both disposable test deployments | Read-only connection, expected tables and required columns |
++
++The HTTP checks cover registration/login, role access, CRUD, selected-location
++history, report privacy/snapshots, review filters, reading risk edits, failure
++messages, CSV permissions/roundtrip/new rows/invalid-file rejection and admin
++bulk deletion/deactivation. Database tests did not modify the user's database.
++
++Weather and address integrations were exercised with deterministic provider
++fixtures, including failure responses. This confirms application handling, not
++current external-service availability or exact addresses in Irisan.
++
++## Cleanup in this patch
++
++- Replaced phase-history README with standalone Version 1.0 setup and usage.
++- Added application/database reference, course alignment and local test guide.
++- Added an optional CLI-only, read-only verification script.
++- Removed three unused configuration helpers and the tracked generated patch.
++- Updated historical wording in the methodology/comment without changing rules.
++- No schema, credentials, risk thresholds, role permissions or UI workflow changes.
++
++## Not certified by these results
++
++- Actual Herd/XAMPP installation and browser rendering on the student's device.
++- Live weather/address provider uptime, map address completeness or house accuracy.
++- Production security; basic sessions omit CSRF tokens, ID regeneration and throttling.
++- Landslide predictive accuracy, official warning authority or sensor measurements.
++- Full course marks, jQuery compliance, team participation or startup deliverables.
++
++Complete docs/TESTING.md and the instructor-specific items in REQUIREMENTS.md
++before signing off the submission. This record is evidence of executed checks,
++not a claim that every possible error has been eliminated.
+diff --git a/methodology.php b/methodology.php
+index 5beac58..46039b2 100644
+--- a/methodology.php
++++ b/methodology.php
+@@ -18,9 +18,9 @@ require_once __DIR__ . '/includes/header.php';
+         <tr><td><?= ucfirst($category) ?></td><?php foreach ($limits as $limit): ?><td>≥ <?= $limit ?></td><?php endforeach; ?></tr>
+         <?php endforeach; ?>
+         </tbody></table></div>
+-        <div class="card-body"><p>Use the highest category where at least one threshold is reached. Values below every threshold are labeled low. These rules retain SmartSlope's <code>prototype-1</code> thresholds; they are not calibrated or validated landslide thresholds for Irisan. The label “normal” is a prototype category, not a statement that conditions are safe.</p>
++        <div class="card-body"><p>Use the highest category where at least one threshold is reached. Values below every threshold are labeled low. These rules use SmartSlope's <code>prototype-1</code> thresholds; they are not calibrated or validated landslide thresholds for Irisan. The label “normal” is a prototype category, not a statement that conditions are safe.</p>
+         <p class="mb-0">A low category does not mean the slope is safe. This rainfall-only screening does not account for slope stability, geology, drainage, or physical sensors. It is not an official warning, prediction, or evacuation instruction.</p></div>
+     </section>
+-    <section class="card"><div class="card-body"><h2 class="h4">How records are identified</h2><p><strong>API:</strong> weather-model inputs from Open-Meteo. <strong>Calculated:</strong> rainfall totals and the prototype category. <strong>User-submitted:</strong> location names and landmarks. Map outlines and saved labels do not establish landslide susceptibility.</p><p>The original provider response, rainfall-window end, and rule version are saved in existing event columns. Administrator edits are labeled separately and keep the original observation time. Resident reports do not automatically raise or lower the calculated rainfall category. An administrator may select a different saved risk status; the panel identifies it separately from the calculated category. Mapped addresses from Photon/OpenStreetMap describe nearby mapped features and may be approximate. No new tables or migrations are required. Forecast, soil-moisture, and susceptibility adjustments are not part of this phase's calculation.</p><a class="btn btn-outline-primary" href="<?= $home ?>">Back to dashboard</a></div></section>
++    <section class="card"><div class="card-body"><h2 class="h4">How records are identified</h2><p><strong>API:</strong> weather-model inputs from Open-Meteo. <strong>Calculated:</strong> rainfall totals and the prototype category. <strong>User-submitted:</strong> location names and landmarks. Map outlines and saved labels do not establish landslide susceptibility.</p><p>The original provider response, rainfall-window end, and rule version are saved in existing event columns. Administrator edits are labeled separately and keep the original observation time. Resident reports do not automatically raise or lower the calculated rainfall category. An administrator may select a different saved risk status; the panel identifies it separately from the calculated category. Mapped addresses from Photon/OpenStreetMap describe nearby mapped features and may be approximate. No new tables or migrations are required. Forecast, soil-moisture, and susceptibility adjustments are not part of Version 1.0's calculation.</p><a class="btn btn-outline-primary" href="<?= $home ?>">Back to dashboard</a></div></section>
+ </main>
+ <?php require_once __DIR__ . '/includes/footer.php'; ?>
+diff --git a/project1-p6-csv-bulk.patch b/project1-p6-csv-bulk.patch
+deleted file mode 100644
+index f53a684..0000000
+--- a/project1-p6-csv-bulk.patch
++++ /dev/null
+@@ -1,494 +0,0 @@
+-diff --git a/README.md b/README.md
+-index 0d92421..642b6fc 100644
+---- a/README.md
+-+++ b/README.md
+-@@ -18,7 +18,7 @@ in place. No database schema or local configuration changes are required.
+-   place. Navigation supports Bootstrap's mobile offcanvas menu.
+- - Login and registration stay together in one column with floating labels.
+- - Phase 3 adds offline map selection and admin location management. Phase 4 adds weather fetching and rainfall assessment.
+--  Phase 5 adds report submission/review and admin reading edits/deletion. CSV remains Phase 6.
+-+  Phase 5 adds report submission/review and admin reading edits/deletion. Phase 6 adds CSV tools and admin bulk actions.
+- - Displayed dates are explicitly labeled UTC; high/medium totals count saved
+-   observations and must not be interpreted as current location risk.
+- 
+-@@ -150,7 +150,7 @@ Forecast/soil-moisture fields stay untouched and are not used by this phase.
+-    JSON. A logged-out request returns 401 JSON. POST is required to fetch/save.
+- 
+- On a browser timeout the server may still finish saving: reload history before
+--retrying. CSV remains Phase 6.
+-+retrying. Phase 6 adds CSV tools and admin bulk actions.
+- 
+- ## Phase 5: reports and management
+- 
+-@@ -382,3 +382,34 @@ Verification: PHP syntax, JavaScript syntax, disposable MariaDB/HTTP tests at ro
+- and `/project1` URLs, and mocked map interaction tests. Check the View dialog,
+- selection, and marker colors in your actual browser after applying the patch;
+- these automated checks do not constitute a browser rendering test.
+-+
+-+
+-+## Phase 6: CSV and bulk management
+-+
+-+- Readings page: both roles can download all saved, unarchived readings. Only
+-+  admins can import. Location Management: admins can download/import locations.
+-+- Download a CSV from this version first; imports require that exact header and
+-+  format marker. Maximum upload: 2 MB and 2000 data rows. Excel-friendly text
+-+  prefixes are added on export and removed on import. Do not change the header.
+-+- Locations match by coordinates (six decimal places). Existing locations are
+-+  skipped, never renamed/reactivated by import. Readings match by location and
+-+  UTC observation time, including archived records. Duplicate readings and
+-+  readings for inactive locations are skipped. Missing locations are created
+-+  from the CSV's location fields.
+-+- Reading imports retain saved values and risk status but are marked manual and
+-+  historical. They do not claim to be a fresh provider assessment. CSV is a data
+-+  exchange format, not a full backup of API payloads or edit history.
+-+- Invalid rows reject the whole file. Database failures roll back the import.
+-+  No schema changes or database re-import are needed.
+-+- Admin data tables have row checkboxes and Select all (displayed rows only).
+-+  Delete selected permanently removes selected readings/reports. Location bulk
+-+  actions can activate, deactivate, or delete unlinked locations. Linked locations
+-+  are skipped on delete to preserve their events. Use deactivate to hide them
+-+  from selection maps. Maximum bulk selection: 500 rows.
+-+- Read-only methodology tables and resident tables have no deletion controls.
+-+
+-+Quick local check: export and re-import (duplicates should be skipped); import
+-+one new row; try an invalid CSV; select two readings/reports and delete them;
+-+try deleting a linked location, then deactivate/reactivate it. Confirm a resident
+-+can download readings but cannot import or access bulk actions. Keep a database
+-+backup before testing permanent deletion with real project data.
+-diff --git a/assets/js/bulk-select.js b/assets/js/bulk-select.js
+-new file mode 100644
+-index 0000000..5f2c36a
+---- /dev/null
+-+++ b/assets/js/bulk-select.js
+-@@ -0,0 +1,10 @@
+-+// Checkboxes belong to a separate form, so existing row forms stay valid HTML.
+-+document.querySelectorAll('[data-select-all]').forEach(toggle => {
+-+    const boxes = document.querySelectorAll('input[name="ids[]"][form="' + toggle.dataset.selectAll + '"]');
+-+    toggle.addEventListener('change', () => boxes.forEach(box => { box.checked = toggle.checked; }));
+-+    boxes.forEach(box => box.addEventListener('change', () => {
+-+        const selected = Array.from(boxes).filter(item => item.checked).length;
+-+        toggle.checked = boxes.length > 0 && selected === boxes.length;
+-+        toggle.indeterminate = selected > 0 && selected < boxes.length;
+-+    }));
+-+});
+-diff --git a/class/bulk.php b/class/bulk.php
+-new file mode 100644
+-index 0000000..3259e86
+---- /dev/null
+-+++ b/class/bulk.php
+-@@ -0,0 +1,18 @@
+-+<?php
+-+require_once __DIR__ . '/db.php';
+-+
+-+class bulk_records extends db {
+-+    public function apply($kind, $action, $ids) {
+-+        $marks = implode(',', array_fill(0, count($ids), '?'));
+-+        if ($kind === 'locations') {
+-+            $sql = $action === 'delete'
+-+                ? "DELETE FROM locations WHERE id IN ($marks) AND NOT EXISTS (SELECT 1 FROM events WHERE events.location_id = locations.id)"
+-+                : 'UPDATE locations SET active = ' . ($action === 'activate' ? '1' : '0') . " WHERE id IN ($marks)";
+-+        } else {
+-+            $sql = "DELETE FROM events WHERE id IN ($marks) AND type = ?";
+-+            $ids[] = $kind === 'readings' ? 'reading' : 'report';
+-+        }
+-+        $stmt = $this->connect()->prepare($sql); $stmt->execute($ids);
+-+        return $stmt->rowCount();
+-+    }
+-+}
+-diff --git a/class/csv.php b/class/csv.php
+-new file mode 100644
+-index 0000000..0c7589f
+---- /dev/null
+-+++ b/class/csv.php
+-@@ -0,0 +1,120 @@
+-+<?php
+-+require_once __DIR__ . '/db.php';
+-+require_once __DIR__ . '/../includes/address.php';
+-+
+-+class csv_data extends db {
+-+    public function columns($kind) {
+-+        $columns = ['format', 'name', 'house_info', 'address', 'latitude', 'longitude'];
+-+        return array_merge($columns, $kind === 'locations'
+-+            ? ['susceptibility', 'active']
+-+            : ['observed_at_utc', 'rainfall_1h', 'rainfall_24h', 'rainfall_72h', 'temperature', 'humidity', 'wind_speed', 'risk_status']);
+-+    }
+-+
+-+    public function download($kind) {
+-+        $sql = $kind === 'locations' ? 'SELECT * FROM locations ORDER BY id'
+-+            : "SELECT locations.name, locations.purok, locations.landmark, locations.lat, locations.lng,
+-+                events.observed_at, events.rainfall_1h, events.rainfall_24h, events.rainfall_72h,
+-+                events.temperature, events.humidity, events.wind_speed, events.risk_level
+-+                FROM events JOIN locations ON locations.id = events.location_id
+-+                WHERE events.type = 'reading' AND events.archived = 0 ORDER BY events.observed_at DESC, events.id DESC";
+-+        $rows = $this->connect()->query($sql);
+-+        header('Content-Type: text/csv; charset=UTF-8');
+-+        header('Content-Disposition: attachment; filename="smartslope-' . $kind . '.csv"');
+-+        header('Cache-Control: no-store');
+-+        $out = fopen('php://output', 'w');
+-+        fputcsv($out, $this->columns($kind), ',', '"', '');
+-+        foreach ($rows as $row) {
+-+            $values = ['smartslope-' . $kind . '-v1', $row['name'], $row['purok'], $row['landmark'], $row['lat'], $row['lng']];
+-+            $fields = $kind === 'locations' ? ['susceptibility', 'active']
+-+                : ['observed_at', 'rainfall_1h', 'rainfall_24h', 'rainfall_72h', 'temperature', 'humidity', 'wind_speed', 'risk_level'];
+-+            foreach ($fields as $field) $values[] = $row[$field];
+-+            // Prefix text cells so spreadsheet software treats them as text. Import removes this prefix.
+-+            foreach ([1, 2, 3] as $index) $values[$index] = "'" . ($values[$index] ?? '');
+-+            fputcsv($out, $values, ',', '"', '');
+-+        }
+-+        fclose($out);
+-+    }
+-+
+-+    public function import($kind, $file) {
+-+        $handle = fopen($file, 'r');
+-+        $columns = $this->columns($kind);
+-+        $header = fgetcsv($handle, 0, ',', '"', '');
+-+        if ($header) $header[0] = preg_replace('/^\xEF\xBB\xBF/', '', $header[0]);
+-+        if ($header !== $columns) {
+-+            fclose($handle);
+-+            throw new InvalidArgumentException('Use a SmartSlope ' . $kind . ' CSV download with its original columns.');
+-+        }
+-+        $rows = [];
+-+        $line = 1;
+-+        while (($values = fgetcsv($handle, 0, ',', '"', '')) !== false) {
+-+            $line++;
+-+            if ($values === [null]) continue;
+-+            if (count($values) !== count($columns) || $values[0] !== 'smartslope-' . $kind . '-v1') {
+-+                fclose($handle);
+-+                throw new InvalidArgumentException('Invalid CSV row ' . $line . '. Nothing was imported.');
+-+            }
+-+            foreach ([1, 2, 3] as $index) {
+-+                if (str_starts_with($values[$index], "'")) $values[$index] = substr($values[$index], 1);
+-+            }
+-+            $row = array_combine($columns, $values);
+-+            $valid = $row['name'] !== '' && $row['name'] === address_text($row['name'], 150)
+-+                && $row['house_info'] === address_text($row['house_info'], 100)
+-+                && $row['address'] === address_text($row['address'], 255)
+-+                && is_numeric($row['latitude']) && is_numeric($row['longitude'])
+-+                && inside_irisan(round((float) $row['latitude'], 6), round((float) $row['longitude'], 6));
+-+            if ($kind === 'locations') {
+-+                $valid = $valid && in_array($row['active'], ['0', '1'], true)
+-+                    && in_array($row['susceptibility'], ['unknown','low','moderate','high','very_high','debris_flow'], true);
+-+            } else {
+-+                $date = DateTimeImmutable::createFromFormat('!Y-m-d H:i:s', $row['observed_at_utc'], new DateTimeZone('UTC'));
+-+                $valid = $valid && ($row['observed_at_utc'] === '' || ($date && $date->format('Y-m-d H:i:s') === $row['observed_at_utc']))
+-+                    && in_array($row['risk_status'], ['low','normal','medium','high'], true);
+-+                foreach (['rainfall_1h'=>[0,99999.99], 'rainfall_24h'=>[0,99999.99], 'rainfall_72h'=>[0,99999.99],
+-+                    'temperature'=>[-999.99,999.99], 'humidity'=>[0,100], 'wind_speed'=>[0,9999.99]] as $field => $range) {
+-+                    if ($row[$field] !== '') $valid = $valid && is_numeric($row[$field]) && $row[$field] >= $range[0] && $row[$field] <= $range[1];
+-+                }
+-+            }
+-+            if (!$valid || count($rows) >= 2000) {
+-+                fclose($handle);
+-+                throw new InvalidArgumentException('Check row ' . $line . ': valid Irisan coordinates and field values are required (maximum 2000 rows). Nothing was imported.');
+-+            }
+-+            $rows[] = $row;
+-+        }
+-+        fclose($handle);
+-+        if (!$rows) throw new InvalidArgumentException('The CSV contains no records.');
+-+        $pdo = $this->connect();
+-+        $added = $skipped = 0;
+-+        $pdo->beginTransaction();
+-+        try {
+-+            foreach ($rows as $row) {
+-+                $lat = round((float) $row['latitude'], 6); $lng = round((float) $row['longitude'], 6);
+-+                $find = $pdo->prepare('SELECT id, active FROM locations WHERE lat = ? AND lng = ?');
+-+                $find->execute([$lat, $lng]); $place = $find->fetch();
+-+                if ($kind === 'locations' && $place) { $skipped++; continue; }
+-+                if ($kind === 'readings' && $place && !$place['active']) { $skipped++; continue; }
+-+                if (!$place) {
+-+                    $insert = $pdo->prepare('INSERT INTO locations (name,purok,landmark,lat,lng,susceptibility,active) VALUES (?,?,?,?,?,?,?)');
+-+                    $insert->execute([$row['name'],$row['house_info'],$row['address'],$lat,$lng,$row['susceptibility'] ?? 'unknown',$row['active'] ?? 1]);
+-+                    $place = ['id'=>$pdo->lastInsertId()];
+-+                }
+-+                if ($kind === 'locations') { $added++; continue; }
+-+                $find = $pdo->prepare("SELECT id FROM events WHERE location_id = ? AND type = 'reading' AND observed_at <=> ?");
+-+                $find->execute([$place['id'],$row['observed_at_utc'] === '' ? null : $row['observed_at_utc']]);
+-+                if ($find->fetch()) { $skipped++; continue; }
+-+                $insert = $pdo->prepare("INSERT INTO events (location_id,type,observed_at,rainfall_1h,rainfall_24h,rainfall_72h,temperature,humidity,wind_speed,risk_level,source,adjustment_log)
+-+                    VALUES (?,'reading',?,?,?,?,?,?,?,?,'manual',?)");
+-+                $insert->execute([$place['id'],$row['observed_at_utc'] === '' ? null : $row['observed_at_utc'],$row['rainfall_1h'] === '' ? null : $row['rainfall_1h'],
+-+                    $row['rainfall_24h'] === '' ? null : $row['rainfall_24h'],$row['rainfall_72h'] === '' ? null : $row['rainfall_72h'],
+-+                    $row['temperature'] === '' ? null : $row['temperature'],$row['humidity'] === '' ? null : $row['humidity'],
+-+                    $row['wind_speed'] === '' ? null : $row['wind_speed'],$row['risk_status'],
+-+                    json_encode(['imported_by'=>$_SESSION['USER_ID'], 'imported_at_utc'=>gmdate('Y-m-d H:i:s')])]);
+-+                $added++;
+-+            }
+-+            $pdo->commit();
+-+        } catch (Throwable $error) {
+-+            $pdo->rollBack();
+-+            throw $error;
+-+        }
+-+        return "$added imported; $skipped skipped (existing records or inactive locations).";
+-+    }
+-+}
+-diff --git a/class/events.php b/class/events.php
+-index 731229f..061f440 100644
+---- a/class/events.php
+-+++ b/class/events.php
+-@@ -51,7 +51,7 @@ class event extends db {
+-     }
+- 
+-     public function get_pending_reports() {
+--        $sql = "SELECT locations.name, locations.purok, locations.landmark, users.full_name AS reporter,
+-+        $sql = "SELECT events.id, locations.name, locations.purok, locations.landmark, users.full_name AS reporter,
+-             COALESCE(events.contact_phone, users.phone) AS contact,
+-             events.status AS report_status, events.created_at AS report_date
+-             FROM events INNER JOIN locations ON events.location_id = locations.id
+-diff --git a/csv.php b/csv.php
+-new file mode 100644
+-index 0000000..05cf600
+---- /dev/null
+-+++ b/csv.php
+-@@ -0,0 +1,35 @@
+-+<?php
+-+require_once __DIR__ . '/includes/session.php';
+-+require_once __DIR__ . '/class/csv.php';
+-+if (empty($_SESSION['USER_ID']) || !in_array($_SESSION['ROLE'] ?? '', ['admin','user'], true)) {
+-+    http_response_code(401); exit('Please log in.');
+-+}
+-+$kind = $_GET['kind'] ?? '';
+-+if (!in_array($kind, ['locations','readings'], true)) { http_response_code(400); exit('Choose locations or readings.'); }
+-+if (($_SERVER['REQUEST_METHOD'] !== 'GET' || $kind === 'locations') && $_SESSION['ROLE'] !== 'admin') {
+-+    http_response_code(403); exit('Access denied.');
+-+}
+-+if (!in_array($_SERVER['REQUEST_METHOD'], ['GET','POST'], true)) { http_response_code(405); exit('Use GET or POST.'); }
+-+$destination = $kind === 'locations' ? '/users/admin/admin_panel.php' : '/readings.php';
+-+$key = $kind === 'locations' ? 'location_notice' : 'reading_notice';
+-+try {
+-+    $csv = new csv_data();
+-+    if ($_SERVER['REQUEST_METHOD'] === 'GET') { $csv->download($kind); exit; }
+-+    unset($_SESSION[$key . '_error']);
+-+    $upload = $_FILES['csv_file'] ?? [];
+-+    if (($upload['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK || !is_uploaded_file($upload['tmp_name'])
+-+        || $upload['size'] > 2 * 1024 * 1024 || strtolower(pathinfo($upload['name'], PATHINFO_EXTENSION)) !== 'csv') {
+-+        throw new InvalidArgumentException('Choose a CSV file no larger than 2 MB.');
+-+    }
+-+    $_SESSION[$key] = $csv->import($kind, $upload['tmp_name']);
+-+} catch (InvalidArgumentException $error) {
+-+    $_SESSION[$key . '_error'] = true;
+-+    $_SESSION[$key] = $error->getMessage();
+-+} catch (Throwable $error) {
+-+    error_log('SmartSlope CSV: ' . $error->getMessage());
+-+    if ($_SERVER['REQUEST_METHOD'] === 'GET') { http_response_code(503); exit('CSV download unavailable.'); }
+-+    $_SESSION[$key . '_error'] = true;
+-+    $_SESSION[$key] = 'CSV import failed. Nothing was imported. Check the server log.';
+-+}
+-+header('Location: ' . BASE_URL . $destination, true, 303);
+-+exit;
+-diff --git a/includes/bulk-tools.php b/includes/bulk-tools.php
+-new file mode 100644
+-index 0000000..5dd92ff
+---- /dev/null
+-+++ b/includes/bulk-tools.php
+-@@ -0,0 +1,9 @@
+-+<?php if (!isset($bulkKind) || ($_SESSION['ROLE'] ?? '') !== 'admin') { http_response_code(404); exit; } ?>
+-+<form id="bulk-<?= $bulkKind ?>" class="p-3 d-flex flex-wrap gap-2 align-items-center" method="post" action="<?= BASE_URL ?>/users/admin/bulk.php" onsubmit="return confirm('Apply this action to the selected rows? Deletion is permanent.');">
+-+    <input type="hidden" name="kind" value="<?= $bulkKind ?>">
+-+    <?php if ($bulkKind === 'locations'): ?>
+-+    <select class="form-select w-auto" name="action" aria-label="Selected locations action"><option value="deactivate">Deactivate selected</option><option value="activate">Activate selected</option><option value="delete">Delete selected (unlinked only)</option></select>
+-+    <button class="btn btn-outline-danger">Apply to selected</button>
+-+    <?php else: ?><input type="hidden" name="action" value="delete"><button class="btn btn-outline-danger">Delete selected</button><?php endif; ?>
+-+    <span class="small text-muted">Select up to 500 rows.</span>
+-+</form>
+-diff --git a/includes/csv-tools.php b/includes/csv-tools.php
+-new file mode 100644
+-index 0000000..8f346ef
+---- /dev/null
+-+++ b/includes/csv-tools.php
+-@@ -0,0 +1,11 @@
+-+<?php if (!isset($csvKind) || empty($_SESSION['USER_ID'])) { http_response_code(404); exit; } ?>
+-+<div class="card-body border-bottom">
+-+    <a class="btn btn-outline-primary" href="<?= BASE_URL ?>/csv.php?kind=<?= $csvKind ?>">Download <?= $csvKind ?> CSV</a>
+-+    <?php if ($_SESSION['ROLE'] === 'admin'): ?>
+-+    <form method="post" enctype="multipart/form-data" action="<?= BASE_URL ?>/csv.php?kind=<?= $csvKind ?>" class="mt-3">
+-+        <label class="form-label" for="csv-<?= $csvKind ?>">Import a SmartSlope <?= $csvKind ?> CSV (maximum 2 MB / 2000 rows)</label>
+-+        <div class="d-flex flex-wrap gap-2"><input id="csv-<?= $csvKind ?>" class="form-control w-auto" type="file" name="csv_file" accept=".csv,text/csv" required><button class="btn btn-primary">Import CSV</button></div>
+-+        <p class="small text-muted mt-2 mb-0">Use the site's downloaded format. Existing records are skipped. Imported readings are manual historical records, not new live weather assessments.</p>
+-+    </form>
+-+    <?php endif; ?>
+-+</div>
+-diff --git a/includes/dashboard.php b/includes/dashboard.php
+-index 0c13976..89b210e 100644
+---- a/includes/dashboard.php
+-+++ b/includes/dashboard.php
+-@@ -82,11 +82,12 @@ require_once __DIR__ . '/header.php';
+-     <?php if ($admin): ?>
+-         <section class="card" aria-labelledby="reports-title">
+-             <div class="card-header d-flex align-items-center justify-content-between gap-2"><h2 id="reports-title">Pending reports</h2><a class="btn btn-sm btn-outline-secondary" href="<?= BASE_URL ?>/users/admin/reports.php?status=pending">Review reports</a></div>
+--            <div class="table-responsive"><table class="table align-middle"><caption class="visually-hidden">Reports awaiting administrator review</caption><thead><tr><th scope="col">Location</th><th scope="col">Reporter</th><th scope="col">Contact</th><th scope="col">Submitted (UTC)</th><th scope="col">Status</th></tr></thead><tbody>
+--                <?php foreach ($reports as $report): ?><tr>
+-+            <?php $bulkKind = 'reports'; require __DIR__ . '/bulk-tools.php'; ?>
+-+            <div class="table-responsive"><table class="table align-middle"><caption class="visually-hidden">Reports awaiting administrator review</caption><thead><tr><th><input type="checkbox" data-select-all="bulk-reports" aria-label="Select all pending reports"></th><th scope="col">Location</th><th scope="col">Reporter</th><th scope="col">Contact</th><th scope="col">Submitted (UTC)</th><th scope="col">Status</th></tr></thead><tbody>
+-+                <?php foreach ($reports as $report): ?><tr><td><input type="checkbox" name="ids[]" form="bulk-reports" value="<?= (int) $report['id'] ?>" aria-label="Select report <?= (int) $report['id'] ?>"></td>
+-                     <td><?= htmlspecialchars($report['location_name'], ENT_QUOTES, 'UTF-8') ?></td><td><?= htmlspecialchars($report['reporter'] ?? 'Former account', ENT_QUOTES, 'UTF-8') ?></td><td><?= htmlspecialchars($report['contact'] ?? 'Not provided', ENT_QUOTES, 'UTF-8') ?></td><td><?= htmlspecialchars($report['report_date'], ENT_QUOTES, 'UTF-8') ?></td><td><span class="risk-badge risk-medium">Pending</span></td>
+-                 </tr><?php endforeach; ?>
+--                <?php if (!$reports): ?><tr><td colspan="5" class="empty-cell">No pending reports to review.</td></tr><?php endif; ?>
+-+                <?php if (!$reports): ?><tr><td colspan="6" class="empty-cell">No pending reports to review.</td></tr><?php endif; ?>
+-             </tbody></table></div>
+-         </section>
+-     <?php else: ?>
+-diff --git a/includes/header.php b/includes/header.php
+-index a43ce72..1cd161a 100644
+---- a/includes/header.php
+-+++ b/includes/header.php
+-@@ -22,6 +22,7 @@ $activePage = $activePage ?? '';
+-     <script src="<?= BASE_URL ?>/assets/vendor/leaflet/leaflet.js" defer></script>
+-     <script src="<?= BASE_URL ?>/assets/js/location-map.js?v=p5-report-selection" defer></script>
+-     <?php endif; ?>
+-+    <?php if ($_SESSION['ROLE'] === 'admin'): ?><script src="<?= BASE_URL ?>/assets/js/bulk-select.js" defer></script><?php endif; ?>
+- </head>
+- <body>
+- <nav class="navbar navbar-expand-lg site-nav py-3" aria-label="Main navigation">
+-diff --git a/includes/readings-table.php b/includes/readings-table.php
+-index b8a9e59..23d1c30 100644
+---- a/includes/readings-table.php
+-+++ b/includes/readings-table.php
+-@@ -5,13 +5,15 @@ if (!isset($readings)) {
+-     exit;
+- }
+- ?>
+-+<?php if (($_SESSION['ROLE'] ?? '') === 'admin') { $bulkKind = 'readings'; require __DIR__ . '/bulk-tools.php'; } ?>
+- <div class="table-responsive">
+-     <table class="table align-middle">
+-         <caption class="visually-hidden">Saved weather readings; categories are historical results, not a current warning.</caption>
+--        <thead><tr><th scope="col">Location</th><th scope="col">Risk status</th><th scope="col">Rainfall mm<br>1h / 24h / 72h</th><th scope="col">Observed (UTC)</th><th scope="col">Details</th></tr></thead>
+-+        <thead><tr><?php if (($_SESSION['ROLE'] ?? '') === 'admin'): ?><th><input type="checkbox" data-select-all="bulk-readings" aria-label="Select all displayed readings"></th><?php endif; ?><th scope="col">Location</th><th scope="col">Risk status</th><th scope="col">Rainfall mm<br>1h / 24h / 72h</th><th scope="col">Observed (UTC)</th><th scope="col">Details</th></tr></thead>
+-         <tbody>
+-         <?php foreach ($readings as $reading): ?>
+-             <tr>
+-+                <?php if (($_SESSION['ROLE'] ?? '') === 'admin'): ?><td><input type="checkbox" name="ids[]" value="<?= (int) $reading['id'] ?>" form="bulk-readings" aria-label="Select reading <?= (int) $reading['id'] ?>"></td><?php endif; ?>
+-                 <td class="fw-semibold"><?= htmlspecialchars($reading['name'], ENT_QUOTES, 'UTF-8') ?></td>
+-                 <td><span class="risk-badge risk-<?= htmlspecialchars($reading['risk_level'] ?? 'unavailable', ENT_QUOTES, 'UTF-8') ?>"><?= htmlspecialchars($reading['risk_level'] ?? 'unavailable', ENT_QUOTES, 'UTF-8') ?></span></td>
+-                 <td><?= htmlspecialchars(($reading['rainfall_1h'] ?? '—') . ' / ' . ($reading['rainfall_24h'] ?? '—') . ' / ' . ($reading['rainfall_72h'] ?? '—'), ENT_QUOTES, 'UTF-8') ?></td>
+-@@ -24,7 +26,7 @@ if (!isset($readings)) {
+-                 </td>
+-             </tr>
+-         <?php endforeach; ?>
+--        <?php if (!$readings): ?><tr><td colspan="5" class="empty-cell">No saved weather readings available.</td></tr><?php endif; ?>
+-+        <?php if (!$readings): ?><tr><td colspan="<?= ($_SESSION['ROLE'] ?? '') === 'admin' ? 6 : 5 ?>" class="empty-cell">No saved weather readings available.</td></tr><?php endif; ?>
+-         </tbody>
+-     </table>
+- </div>
+-diff --git a/readings.php b/readings.php
+-index f702ab3..690626e 100644
+---- a/readings.php
+-+++ b/readings.php
+-@@ -11,7 +11,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $_SESSION['ROLE'] !== 'admin') {
+-     exit('Access denied.');
+- }
+- $notice = $_SESSION['reading_notice'] ?? '';
+--unset($_SESSION['reading_notice']);
+-+$noticeError = !empty($_SESSION['reading_notice_error']);
+-+unset($_SESSION['reading_notice'], $_SESSION['reading_notice_error']);
+- $pageTitle = 'Weather readings';
+- $activePage = 'readings';
+- $readings = [];
+-@@ -42,8 +43,8 @@ require_once __DIR__ . '/includes/header.php';
+- ?>
+- <main class="page-shell">
+-     <div class="page-heading"><div><span class="eyebrow">Weather history</span><h1>Saved readings</h1><p class="page-subtitle">Recorded observations for Irisan. Categories describe saved readings, not current warnings.</p></div><a class="btn btn-outline-primary" href="<?= $home ?>">Back to dashboard</a></div>
+--    <?php if ($notice): ?><p class="alert alert-success" role="status"><?= htmlspecialchars($notice, ENT_QUOTES, 'UTF-8') ?></p><?php endif; ?>
+-+    <?php if ($notice): ?><p class="alert alert-<?= $noticeError ? 'danger' : 'success' ?>" role="status"><?= htmlspecialchars($notice, ENT_QUOTES, 'UTF-8') ?></p><?php endif; ?>
+-     <?php if ($error): ?><p class="alert alert-danger" role="alert"><?= htmlspecialchars($error, ENT_QUOTES, 'UTF-8') ?></p><?php endif; ?>
+--    <section class="card"><div class="card-header"><h2>Weather observations</h2></div><?php require __DIR__ . '/includes/readings-table.php'; ?></section>
+-+    <section class="card"><div class="card-header"><h2>Weather observations</h2></div><?php $csvKind = 'readings'; require __DIR__ . '/includes/csv-tools.php'; require __DIR__ . '/includes/readings-table.php'; ?></section>
+- </main>
+- <?php require_once __DIR__ . '/includes/footer.php'; ?>
+-diff --git a/users/admin/admin_panel.php b/users/admin/admin_panel.php
+-index e368564..efa8605 100644
+---- a/users/admin/admin_panel.php
+-+++ b/users/admin/admin_panel.php
+-@@ -19,7 +19,8 @@ $locations = [];
+- $form = ['id' => 0, 'name' => '', 'purok' => '', 'landmark' => '', 'lat' => '', 'lng' => ''];
+- $error = '';
+- $notice = $_SESSION['location_notice'] ?? '';
+--unset($_SESSION['location_notice']);
+-+$noticeError = !empty($_SESSION['location_notice_error']);
+-+unset($_SESSION['location_notice'], $_SESSION['location_notice_error']);
+- try {
+-     if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+-         $action = filter_input(INPUT_POST, 'action');
+-@@ -80,7 +81,7 @@ require_once __DIR__ . '/../../includes/header.php';
+- <main class="page-shell">
+-     <div class="page-heading"><div><span class="eyebrow">SmartSlope · Irisan</span><h1>Location management</h1><p class="page-subtitle">Add named places inside Irisan. Coordinates can be selected on the local map.</p></div></div>
+-     <nav class="d-flex flex-wrap gap-2 mb-4" aria-label="Management sections"><a class="btn btn-primary" href="<?= BASE_URL ?>/users/admin/reports.php">Review reports</a><a class="btn btn-outline-primary" href="<?= BASE_URL ?>/readings.php">Manage readings</a></nav>
+--    <?php if ($notice): ?><p class="alert alert-success" role="status"><?= htmlspecialchars($notice, ENT_QUOTES, 'UTF-8') ?></p><?php endif; ?>
+-+    <?php if ($notice): ?><p class="alert alert-<?= $noticeError ? 'danger' : 'success' ?>" role="status"><?= htmlspecialchars($notice, ENT_QUOTES, 'UTF-8') ?></p><?php endif; ?>
+-     <?php if ($error): ?><p class="alert alert-danger" role="alert"><?= htmlspecialchars($error, ENT_QUOTES, 'UTF-8') ?></p><?php endif; ?>
+-     <label for="manage-location" class="form-label">Choose an active saved location, or click the map to add one</label>
+-     <select id="manage-location" class="form-select mb-3">
+-@@ -108,9 +109,9 @@ require_once __DIR__ . '/../../includes/header.php';
+-             </form>
+-         </div></section></div>
+-     </div>
+--    <section class="card"><div class="card-header"><h2>All locations</h2></div><div class="table-responsive"><table class="table align-middle">
+--        <thead><tr><th>Name</th><th>House no. / location info</th><th>Coordinates</th><th>Status</th><th>Actions</th></tr></thead><tbody>
+--        <?php foreach ($locations as $place): ?><tr>
+-+    <section class="card"><div class="card-header"><h2>All locations</h2></div><?php $csvKind = 'locations'; require __DIR__ . '/../../includes/csv-tools.php'; $bulkKind = 'locations'; require __DIR__ . '/../../includes/bulk-tools.php'; ?><div class="table-responsive"><table class="table align-middle">
+-+        <thead><tr><th><input type="checkbox" data-select-all="bulk-locations" aria-label="Select all locations"></th><th>Name</th><th>House no. / location info</th><th>Coordinates</th><th>Status</th><th>Actions</th></tr></thead><tbody>
+-+        <?php foreach ($locations as $place): ?><tr><td><input type="checkbox" name="ids[]" form="bulk-locations" value="<?= (int) $place['id'] ?>" aria-label="Select location <?= (int) $place['id'] ?>"></td>
+-             <td><?= htmlspecialchars($place['address_label'], ENT_QUOTES, 'UTF-8') ?></td>
+-             <td><?= htmlspecialchars($place['purok'] ?? '', ENT_QUOTES, 'UTF-8') ?></td>
+-             <td><?= htmlspecialchars(($place['lat'] ?? '—') . ', ' . ($place['lng'] ?? '—'), ENT_QUOTES, 'UTF-8') ?></td>
+-@@ -119,9 +120,9 @@ require_once __DIR__ . '/../../includes/header.php';
+-                 <form method="post" action="<?= BASE_URL ?>/users/admin/admin_panel.php"><input type="hidden" name="id" value="<?= (int) $place['id'] ?>"><input type="hidden" name="action" value="<?= $place['active'] ? 'deactivate' : 'activate' ?>"><button class="btn btn-sm btn-outline-secondary" type="submit"><?= $place['active'] ? 'Deactivate' : 'Activate' ?></button></form>
+-             </div></td>
+-         </tr><?php endforeach; ?>
+--        <?php if (!$locations): ?><tr><td colspan="5" class="empty-cell">No locations available.</td></tr><?php endif; ?>
+-+        <?php if (!$locations): ?><tr><td colspan="6" class="empty-cell">No locations available.</td></tr><?php endif; ?>
+-         </tbody></table></div>
+--        <div class="card-body"><p class="small mb-0">Deactivating hides a place from dashboard selection and keeps linked readings and reports. Use Review reports and Manage readings above. CSV tools arrive in Phase 6.</p></div>
+-+        <div class="card-body"><p class="small mb-0">Deactivating hides a place from dashboard selection and keeps linked readings and reports. Use Review reports and Manage readings above. CSV tools are available above. Delete only removes unlinked locations; deactivate locations with readings or reports.</p></div>
+-     </section>
+- </main>
+- <?php require_once __DIR__ . '/../../includes/footer.php'; ?>
+-diff --git a/users/admin/bulk.php b/users/admin/bulk.php
+-new file mode 100644
+-index 0000000..54650cd
+---- /dev/null
+-+++ b/users/admin/bulk.php
+-@@ -0,0 +1,27 @@
+-+<?php
+-+require_once __DIR__ . '/../../includes/session.php';
+-+require_once __DIR__ . '/../../class/bulk.php';
+-+if (empty($_SESSION['USER_ID']) || ($_SESSION['ROLE'] ?? '') !== 'admin') { http_response_code(403); exit('Access denied.'); }
+-+if ($_SERVER['REQUEST_METHOD'] !== 'POST') { http_response_code(405); exit('Use POST.'); }
+-+$kind = $_POST['kind'] ?? '';
+-+$action = $_POST['action'] ?? '';
+-+$routes = ['readings'=>['/readings.php','reading_notice'], 'reports'=>['/users/admin/reports.php','review_notice'], 'locations'=>['/users/admin/admin_panel.php','location_notice']];
+-+if (!is_string($kind) || !isset($routes[$kind]) || !in_array($action, $kind === 'locations' ? ['delete','deactivate','activate'] : ['delete'], true)) {
+-+    http_response_code(400); exit('Invalid bulk action.');
+-+}
+-+$ids = $_POST['ids'] ?? [];
+-+if (!is_array($ids) || !$ids || count($ids) > 500) {
+-+    $_SESSION[$routes[$kind][1]] = 'Select between 1 and 500 rows.';
+-+} else {
+-+    foreach ($ids as $id) if (!filter_var($id, FILTER_VALIDATE_INT, ['options'=>['min_range'=>1]])) { http_response_code(400); exit('Invalid selection.'); }
+-+    $ids = array_values(array_unique($ids));
+-+    try {
+-+        $changed = (new bulk_records())->apply($kind, $action, $ids);
+-+        $_SESSION[$routes[$kind][1]] = "$changed records changed. " . (count($ids)-$changed) . ' unchanged or skipped. Linked locations cannot be deleted; deactivate them instead.';
+-+    } catch (PDOException $error) {
+-+        error_log('SmartSlope bulk: ' . $error->getMessage());
+-+        $_SESSION[$routes[$kind][1]] = 'Bulk action failed. Please try again.';
+-+    }
+-+}
+-+header('Location: ' . BASE_URL . $routes[$kind][0], true, 303);
+-+exit;
+-diff --git a/users/admin/reports.php b/users/admin/reports.php
+-index df6e0e0..df3ae66 100644
+---- a/users/admin/reports.php
+-+++ b/users/admin/reports.php
+-@@ -56,9 +56,9 @@ require_once __DIR__ . '/../../includes/header.php';
+-     <nav class="nav nav-pills gap-2 mb-3" aria-label="Report status filters">
+-     <?php foreach (['all', 'pending', 'reviewed', 'resolved'] as $status): ?><a class="nav-link <?= $filter === $status ? 'active' : '' ?>" <?= $filter === $status ? 'aria-current="page"' : '' ?> href="?status=<?= $status ?>"><?= ucfirst($status) ?></a><?php endforeach; ?>
+-     </nav>
+--    <section class="card"><div class="table-responsive"><table class="table align-middle"><thead><tr><th>Location</th><th>Reporter</th><th>Submitted (UTC)</th><th>Status</th><th>Details</th></tr></thead><tbody>
+--    <?php foreach ($items as $report): ?><tr data-report-id="<?= (int) $report['id'] ?>"><td><?= htmlspecialchars($report['name'], ENT_QUOTES, 'UTF-8') ?></td><td><?= htmlspecialchars($report['reporter'] ?? 'Former account', ENT_QUOTES, 'UTF-8') ?></td><td><?= htmlspecialchars($report['created_at'], ENT_QUOTES, 'UTF-8') ?></td><td><?= ucfirst($report['status']) ?></td><td><button class="btn btn-sm btn-outline-primary" type="button" data-bs-toggle="modal" data-bs-target="#report-<?= (int) $report['id'] ?>">View</button></td></tr><?php endforeach; ?>
+--    <?php if (!$items): ?><tr><td colspan="5" class="empty-cell">No reports match this status.</td></tr><?php endif; ?>
+-+    <section class="card"><?php $bulkKind = 'reports'; require __DIR__ . '/../../includes/bulk-tools.php'; ?><div class="table-responsive"><table class="table align-middle"><thead><tr><th><input type="checkbox" data-select-all="bulk-reports" aria-label="Select all displayed reports"></th><th>Location</th><th>Reporter</th><th>Submitted (UTC)</th><th>Status</th><th>Details</th></tr></thead><tbody>
+-+    <?php foreach ($items as $report): ?><tr data-report-id="<?= (int) $report['id'] ?>"><td><input type="checkbox" name="ids[]" form="bulk-reports" value="<?= (int) $report['id'] ?>" aria-label="Select report <?= (int) $report['id'] ?>"></td><td><?= htmlspecialchars($report['name'], ENT_QUOTES, 'UTF-8') ?></td><td><?= htmlspecialchars($report['reporter'] ?? 'Former account', ENT_QUOTES, 'UTF-8') ?></td><td><?= htmlspecialchars($report['created_at'], ENT_QUOTES, 'UTF-8') ?></td><td><?= ucfirst($report['status']) ?></td><td><button class="btn btn-sm btn-outline-primary" type="button" data-bs-toggle="modal" data-bs-target="#report-<?= (int) $report['id'] ?>">View</button></td></tr><?php endforeach; ?>
+-+    <?php if (!$items): ?><tr><td colspan="6" class="empty-cell">No reports match this status.</td></tr><?php endif; ?>
+-     </tbody></table></div></section>
+-     <?php foreach ($items as $report): ?>
+-     <div class="modal fade" id="report-<?= (int) $report['id'] ?>" tabindex="-1" aria-labelledby="report-title-<?= (int) $report['id'] ?>" aria-hidden="true"><div class="modal-dialog modal-dialog-scrollable"><div class="modal-content">
+diff --git a/tools/verify.php b/tools/verify.php
+new file mode 100644
+index 0000000..5e013d6
+--- /dev/null
++++ b/tools/verify.php
+@@ -0,0 +1,86 @@
++<?php
++// Read-only checks. Run from a terminal: php tools/verify.php [--database]
++if (PHP_SAPI !== 'cli') { http_response_code(404); exit; }
++require_once __DIR__ . '/../class/RiskAnalyzer.php';
++require_once __DIR__ . '/../includes/map-boundary.php';
++$root = dirname(__DIR__);
++$failures = 0;
++$checks = 0;
++function check($ok, $message) {
++    global $failures, $checks;
++    $checks++;
++    echo ($ok ? 'PASS ' : 'FAIL ') . $message . PHP_EOL;
++    if (!$ok) $failures++;
++}
++check(PHP_VERSION_ID >= 80000, 'PHP 8.0 or newer');
++foreach (['pdo_mysql', 'curl', 'json', 'session'] as $extension) check(extension_loaded($extension), 'Extension: ' . $extension);
++$files = glob($root . '/*.php');
++foreach (['class','includes','api','users/admin','users/user','tools'] as $folder) {
++    $files = array_merge($files, glob($root . '/' . $folder . '/*.php'));
++}
++if (is_callable('exec')) {
++    foreach ($files as $file) {
++        $output = []; $code = 0;
++        exec(escapeshellarg(PHP_BINARY) . ' -l ' . escapeshellarg($file) . ' 2>&1', $output, $code);
++        check($code === 0, 'PHP syntax: ' . substr($file, strlen($root) + 1));
++        if ($code !== 0) echo implode(PHP_EOL, $output) . PHP_EOL;
++    }
++} else {
++    echo "SKIP PHP syntax checks: exec is disabled. Run php -l on the PHP files separately.\n";
++}
++foreach (['assets/css/bootstrap.min.css','assets/css/style.css','assets/js/bootstrap.bundle.min.js',
++    'assets/js/location-map.js','assets/js/report-maps.js','assets/js/weather.js','assets/js/bulk-select.js',
++    'assets/vendor/leaflet/leaflet.js','assets/vendor/leaflet/leaflet.css','assets/map/irisan.geojson'] as $asset) {
++    check(is_file($root . '/' . $asset) && filesize($root . '/' . $asset) > 0, 'Local asset: ' . $asset);
++}
++$tiles = glob($root . '/assets/map-tiles/*/*/*.png');
++check(count($tiles) >= 110, 'Offline tile set: at least 110 PNG files');
++$validTiles = true;
++foreach ($tiles as $tile) {
++    $handle = fopen($tile, 'rb'); $signature = fread($handle, 8); fclose($handle);
++    if ($signature !== "\x89PNG\r\n\x1a\n") $validTiles = false;
++}
++check($validTiles, 'Tile files have PNG signatures');
++check(inside_irisan(16.421, 120.5595), 'Pilot point is inside Irisan');
++check(!inside_irisan(0, 0), 'Outside point is rejected');
++$risk = new RiskAnalyzer();
++foreach ([[0,0,0,'low'],[10,10,10,'normal'],[25,25,25,'medium'],[50,50,50,'high'],
++    [0,25,25,'normal'],[0,50,50,'medium'],[0,0,150,'high'],[-1,0,0,null],[20,10,30,null],[null,0,0,null]] as $case) {
++    check($risk->analyze($case[0],$case[1],$case[2]) === $case[3], 'Rainfall case: ' . json_encode($case));
++}
++$end = intdiv(time(), 3600) * 3600;
++$reading = ['rainfall_1h'=>0,'rainfall_24h'=>0,'rainfall_72h'=>0,'observed_at'=>gmdate('Y-m-d H:i:s',$end),
++    'rainfall_window_end'=>gmdate('Y-m-d H:i:s',$end),'rule_version'=>RiskAnalyzer::VERSION,'source'=>'openmeteo','risk_level'=>'low'];
++check($risk->assess($reading,$end+60)['status'] === 'current', 'Fresh complete assessment');
++check($risk->assess($reading,$end+RiskAnalyzer::MAX_AGE)['status'] === 'outdated', 'Three-hour freshness boundary');
++$reading['source']='manual'; $reading['risk_level']='high';
++check($risk->assess($reading,$end+60)['category'] === 'high', 'Admin saved risk override');
++$reading['rule_version']=null;
++check($risk->assess($reading,$end+60)['status'] === 'incomplete', 'Imported/legacy data is not a fresh assessment');
++if (in_array('--database', $argv, true)) {
++    require_once $root . '/config.php';
++    try {
++        $pdo = new PDO('mysql:host='.DB_HOST.';port='.DB_PORT.';dbname='.DB_NAME.';charset=utf8mb4', DB_USER, DB_PASS,
++            [PDO::ATTR_ERRMODE=>PDO::ERRMODE_EXCEPTION]);
++        check(true, 'Database connection');
++        $expected = ['users'=>['id','username','password','role','full_name','email','phone'],
++            'locations'=>['id','name','purok','landmark','lat','lng','active','susceptibility'],
++            'events'=>['id','location_id','user_id','type','risk_level','observed_at','rainfall_1h','rainfall_24h','rainfall_72h',
++                'temperature','humidity','wind_speed','weather_code','source','archived','created_at','rainfall_window_end',
++                'rule_version','provider_payload','adjustment_log','message','report_type','status','contact_phone',
++                'contact_email','house_landmark','occurred_at','reviewed_by','reviewed_at']];
++        foreach ($expected as $table=>$columns) {
++            $actual = $pdo->query('SHOW COLUMNS FROM `' . $table . '`')->fetchAll(PDO::FETCH_COLUMN);
++            check(!array_diff($columns,$actual), 'Required columns: ' . $table);
++        }
++        $tables = $pdo->query('SHOW TABLES')->fetchAll(PDO::FETCH_COLUMN);
++        check(count($tables) === 3, 'Expected three-table database');
++    } catch (PDOException $error) {
++        check(false, 'Database unavailable or columns missing. Check config.php and database/schema.sql; do not overwrite an existing database.');
++    }
++} else {
++    echo "SKIP database checks. Run again with --database after configuring MySQL.\n";
++}
++echo "$checks checks; $failures failures.\n";
++echo "This script does not write data or test browser rendering, login/CRUD flows, or live providers. Complete docs/TESTING.md.\n";
++exit($failures ? 1 : 0);
