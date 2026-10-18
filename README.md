@@ -39,6 +39,11 @@ Do not reimport it over your existing database. The fresh-install seed contains
 an administrator account; change its password hash before using that account
 beyond a local demo. Existing accounts and their password hashes continue to work.
 
+For a local demo, run `database/sample_data.sql` after the schema. It adds two
+resident accounts, two locations, and five events (three readings and two
+reports). The sample resident password is `user123`. Run the event inserts only
+once, because events are intentionally retained as historical records.
+
 Registration writes the contact field to `users.phone` and always assigns `user`.
 The session keeps only the account ID, username, full name, and role. Existing
 sessions from the starter version must log in again.
