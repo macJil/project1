@@ -1,712 +1,285 @@
-# SmartSlope Version 1.0 — Six-week file-by-file team plan
+# SmartSlope — Five-week new-repository team plan
 
-## Goal and reference
+## Goal
 
-By the end of **Week 2**, registration, login, separate admin/resident dashboards
-and the green-and-brown design must work. Later weeks add maps, weather, reports,
-CSV and bulk actions. Keep the existing three-table schema unchanged.
+Build a working copy of SmartSlope in a **new GitHub repository** over five
+weeks. Use the current SmartSlope project as the source for the staged work;
+this is not a request to change the current project during planning. By the end
+of Week 5, the new repository should have a working, tested website with the
+existing features: accounts and roles, dashboards, offline maps, weather
+screening, resident reports, administration, CSV and bulk actions.
 
-Reference: [project1, branch p6](https://github.com/macJil/project1/tree/p6), reviewed
-at commit `b79c7fc9b03cbb69da2496d4fcfca0bb4ca51243`. Apply the accompanying
-documentation patch to the reference first to obtain this plan and the new image.
-Keep that approved reference in a separate folder throughout the six weeks.
+The README describes the project's intended three-layer architecture:
+Presentation / Client, Application / Logic, and Data / Database. Keep browser
+code away from the database, and keep authentication, validation and
+authoritative application rules in PHP.
 
-This is a copying, adaptation and integration plan. Credit the reference and
-record actual contributions and dates. Do not describe copied code as newly
-invented work. Replace Member A–D with the team's names.
-
-## Responsibilities
-
-| Member | Main responsibility |
-| --- | --- |
-| A | Authentication, admin pages, permissions and integration |
-| B | Shared layout, dashboard design, tables and controls |
-| C | Database, PDO classes, weather/risk logic and CSV |
-| D | Maps, resident reporting, browser tests and documentation |
-
-Only the assigned owner edits a file during that week. Other members review it.
-Ownership can transfer in later weeks after the previous work has merged.
-
-## How to use the exact file lists
-
-- **Copy new:** copy the file from the approved reference into the identical
-  relative path in the official repository, then apply the week's staging notes.
-- **Update existing:** edit the official copy in place; compare against the
-  reference without overwriting teammates' changes or local configuration.
-- **Create:** write the small temporary page described at the named path.
-- **Test only:** no new source files to copy; record results in the weekly issue.
-- Paths start at the repository root. Preserve filename case, especially
-  `class/RiskAnalyzer.php`.
-
-**The final reference files depend on later features.** Copying every assigned
-page unchanged in an early week can cause missing includes or broken links.
-The staging notes below are part of the assignment. Do not use empty classes,
-fake readings or suppressed errors to hide a missing dependency.
+Replace **Member A–D** with the four students' names before the first week.
+Each member keeps one personal branch for all five weeks. One agreed integrator
+merges the four branches into `main` each week, only after review and testing.
+Never commit directly to `main`.
 
 ## Before Week 1
 
-1. Create the official repository and invite all four members. Keep the approved
-   reference separate; never copy its `.git` directory.
-2. Agree on the served folder and `BASE_URL`: `/project1` for a XAMPP subfolder,
-   or an empty string for a Herd site served at its root. Substitute the actual
-   folder name when different. Keep PHP includes anchored with `__DIR__`.
-3. Start PHP and MySQL. Herd needs a separate running database server.
-4. Create a development database; import `database/schema.sql` only for a new
-   database. Keep the `users`, `locations` and `events` tables unchanged.
-5. Use fictional accounts/reports and private local database credentials.
-6. Create six milestone issues for actual test evidence and contribution notes.
-
-## Week 1 — Foundation and working login
-
-### Member A — Authentication
-
-**Copy new:**
-
-```text
-config.php
-includes/session.php
-index.php
-logout.php
-```
-
-Set database constants and `BASE_URL`. Keep existing password hashing, prepared
-statements and account/role checks. Coordinate with D so login has a working
-destination. B reviews the login design; A owns `index.php` this week.
-
-### Member B — Shared design
-
-**Copy new:**
-
-```text
-assets/css/bootstrap.min.css
-assets/css/bootstrap.min.css.map
-assets/css/style.css
-assets/js/bootstrap.bundle.min.js
-assets/js/bootstrap.bundle.min.js.map
-includes/header.php
-includes/footer.php
-```
-
-Keep vendor license comments. The `.map` files are browser source maps, not map
-tiles. In the header show only Dashboard and Log out. Defer Leaflet,
-`location-map.js`, `bulk-select.js` and links to Readings, Management, Submit
-report and Methodology until those files are introduced.
-
-### Member C — Database and accounts
-
-**Copy new:**
-
-```text
-database/schema.sql
-class/db.php
-class/users.php
-```
-
-Import the unchanged schema into the new development database. Test registration,
-password verification, duplicate usernames and incorrect passwords.
-
-### Member D — Working role destinations
-
-**Copy new:**
-
-```text
-dashboard.php
-users/admin/admin.php
-users/user/user.php
-```
-
-**Create:**
-
-```text
-includes/dashboard.php
-```
-
-Keep the copied entry pages' authentication/role checks. Create a small shared
-landing view using the header/footer, correct role heading and welcome message.
-Do not require events, locations, weather or risk classes yet. B replaces this
-landing view with the saved-data dashboard in Week 2.
-
-Test login/logout, both role redirects and direct access to the opposite role's
-page using `index.php`, `logout.php` and the three copied destination pages.
-
-**Integration order:** C/A establish database/session dependencies; B adds layout;
-D adds landing pages; everyone tests the combined build before acceptance.
-
-**Acceptance:** both roles log in/out correctly, protected pages enforce access,
-registration creates a resident and stored passwords are hashes. No login
-redirect leads to a missing page.
-
-## Week 2 — Dashboards and design ready
-
-### Member A — Routing and permissions
-
-**Review; update existing only if needed:**
-
-```text
-dashboard.php
-users/admin/admin.php
-users/user/user.php
-```
-
-Confirm the role entry pages load B's dashboard and retain permission checks.
-Leave correct files unchanged. Test both root and subfolder URL layouts.
-
-### Member B — Saved-data dashboards and tables
-
-**Copy new:**
-
-```text
-readings.php
-includes/readings-table.php
-```
-
-**Update existing:**
-
-```text
-includes/dashboard.php
-includes/header.php
-includes/footer.php
-assets/css/style.css
-```
-
-Use the reference dashboard's headings, cards, tables and role-specific layout.
-Stage the files explicitly:
-
-1. Use `class/events.php` for counts, saved readings and reading Details.
-2. In the dashboard, defer the location, weather-reading and RiskAnalyzer
-   requires and object calls. Do not compute `$assessment` or look up `$latest`
-   yet. Display all saved readings without map selection for now.
-3. Defer the map/assessment block, weather script, resident report action and
-   admin report-review link. Read-only counts/report summaries can remain.
-4. In `readings.php`, defer the weather-reading class, POST deletion block and
-   CSV tools include. Keep the saved-reading list and detail query.
-5. In the reading and dashboard report tables, defer bulk includes, checkbox
-   columns and Edit links. Keep Details; adjust column spans to visible columns.
-6. Add Readings to the header; keep later links and scripts deferred.
-
-Show honest empty states. Complete responsive cards, tables and navigation now;
-later features will use the same visual design.
-
-### Member C — Saved-data queries and dependencies
-
-**Copy new:**
-
-```text
-class/events.php
-includes/address.php
-includes/map-boundary.php
-assets/map/irisan.geojson
-```
-
-Copy all four together: the event class uses address labels, the address helper
-loads the boundary helper, and that helper reads the GeoJSON. Preserve their
-behavior. Verify counts against the database and test empty results.
-
-### Member D — Dashboard testing
-
-**Test only; no new files to copy.** Check:
-
-```text
-index.php
-dashboard.php
-users/admin/admin.php
-users/user/user.php
-readings.php
-```
-
-Test both roles, saved-reading Details, mobile navigation, empty states and
-Herd/XAMPP paths. Residents must not see the admin report/contact table. Record
-screenshots in the weekly issue and send fixes to the appropriate file owner.
-
-**Integration order:** C's dependencies, B's views, A's routing review, D's tests.
-
-**Acceptance:** login, registration, logout, both dashboards, their design and
-saved-reading Details work. Map/weather/report features are later milestones;
-do not pretend they are complete in Week 2.
-
-## Week 3 — Locations, offline map and addresses
-
-### Member A — Location management
-
-**Copy new:**
-
-```text
-users/admin/admin_panel.php
-```
-
-Keep create/edit/activate/deactivate controls. Defer CSV and bulk includes,
-checkboxes and bulk forms until Week 6. Check direct admin-only access.
-
-### Member B — Map view and dashboard placement
-
-**Copy new:**
-
-```text
-includes/location-map.php
-```
-
-**Update existing:**
-
-```text
-includes/dashboard.php
-assets/css/style.css
-```
-
-Restore the location class, active locations, selected-location lookup and
-filtered saved readings. Set `$showMap` and insert the map view. Keep weather
-classes and the assessment panel deferred. Check responsive map placement.
-
-### Member C — Location data
-
-**Copy new:**
-
-```text
-class/locations.php
-```
-
-Reuse the Week 2 address/boundary dependencies. Test create/edit, active filtering
-and coordinate handling. Do not change the schema.
-
-### Member D — Map engine, tiles and address endpoint
-
-**Copy new:**
-
-```text
-api/address.php
-assets/js/location-map.js
-assets/vendor/leaflet/LICENSE
-assets/vendor/leaflet/leaflet.css
-assets/vendor/leaflet/leaflet.js
-assets/vendor/leaflet/images/layers-2x.png
-assets/vendor/leaflet/images/layers.png
-assets/vendor/leaflet/images/marker-icon-2x.png
-assets/vendor/leaflet/images/marker-icon.png
-assets/vendor/leaflet/images/marker-shadow.png
-assets/map-tiles/README.md
-```
-
-Also copy **all 110 PNG tiles** listed in the checklist at the end. The easiest
-way is copying the entire `assets/map-tiles/` folder, preserving zoom/x/y names.
-The boundary GeoJSON was already copied in Week 2.
-
-**Update existing:**
-
-```text
-includes/header.php
-```
-
-Enable conditional Leaflet CSS/JS and the location-map script. Add Management
-for admins. Keep the bulk script and future links deferred. Stage the map
-script for selection, addresses and saved history; do not wire it to unavailable
-weather controls/endpoints. Week 4 completes that interaction.
-
-**Integration order:** C's class, B/D's map dependencies, then A's management page.
-
-**Acceptance:** clicks show coordinates and available addresses; inactive places
-are hidden from selection maps; local tiles work offline while PHP/MySQL run.
-New detailed address lookups still need internet.
-
-## Week 4 — Weather and assessment
-
-### Member A — Weather API
-
-**Copy new:**
-
-```text
-api/readings.php
-```
-
-Check authentication, GET/POST behavior and provider-failure messages. Opening or
-reloading a dashboard alone must not save a new weather reading.
-
-### Member B — Weather display
-
-**Copy new:**
-
-```text
-includes/assessment.php
-methodology.php
-```
-
-**Update existing:**
-
-```text
-includes/dashboard.php
-includes/header.php
-assets/css/style.css
-```
-
-Restore weather-reading/RiskAnalyzer requires, latest-reading lookup,
-assessment calculation/view and weather script. Add Methodology to navigation.
-Match the reference loading, error, source and freshness labels. Keep later
-report/bulk controls deferred.
-
-### Member C — Weather processing and risk rules
-
-**Copy new:**
-
-```text
-class/RiskAnalyzer.php
-class/weather_readings.php
-includes/weather.php
-```
-
-Preserve thresholds, complete rainfall windows, timestamps and saved-risk
-behavior. Test threshold boundaries, stale records and incomplete responses.
-Provider failure must preserve good saved readings.
-
-### Member D — Map-to-weather interaction
-
-**Copy new:**
-
-```text
-assets/js/weather.js
-```
-
-**Update existing:**
-
-```text
-assets/js/location-map.js
-```
-
-Restore the reference selection/refresh event flow. Test clicking, choosing a
-saved location, Refresh, repeated clicks and offline failures. Report and
-management map selections must not trigger dashboard weather fetching.
-
-**Integration order:** C's logic, A's API, then B/D's views and scripts.
-
-**Acceptance:** successful dashboard clicks/refreshes save and display weather
-and its assessment. Stale/incomplete data is not presented as current, and
-provider failure leaves previous data available.
-
-## Week 5 — Reports and reading management
-
-### Member A — Admin review and reading edits
-
-**Copy new:**
-
-```text
-users/admin/reports.php
-users/admin/edit_reading.php
-```
-
-Defer the review page's bulk-tools/checkbox controls until Week 6. Keep View,
-report maps, filters and review-status actions. Keep reading edits and saved
-risk options. Do not add individual Delete buttons. D supplies report-map JS.
-
-### Member B — Navigation, tables and presentation
-
-**Update existing:**
-
-```text
-includes/header.php
-includes/dashboard.php
-includes/readings-table.php
-assets/css/style.css
-```
-
-Enable resident Submit report, admin report-review links and admin reading Edit.
-Review A/D's new page layouts; their owners make page changes. Keep bulk controls
-deferred until Week 6.
-
-### Member C — Report data
-
-**Copy new:**
-
-```text
-class/reports.php
-```
-
-Verify resident ownership, contacts, original point/address snapshots and admin
-status updates. Review reading-update behavior with A; no new reading class or
-schema is needed.
-
-### Member D — Resident report and modal maps
-
-**Copy new:**
-
-```text
-users/user/submit_report.php
-assets/js/report-maps.js
-```
-
-Test active saved-location selection, map-click address/coordinates, required
-phone/email and own-report history. Check the admin modal shows the original
-reported point after opening, closing and reopening it.
-
-**Integration order:** C's class, A/D's pages/script, then B's navigation and links.
-
-**Acceptance:** residents submit and view their own reports; admins review maps
-and change pending/reviewed/resolved status. Reading edits preserve observation
-time and saved risk colors match the map. Review status is separate from risk.
-
-## Week 6 — CSV, bulk actions and submission
-
-### Member A — Bulk endpoint and final permissions
-
-**Copy new:**
-
-```text
-users/admin/bulk.php
-```
-
-Check each action's role and record type. Review final routes with B/C. Residents
-must not gain import, edit, delete or administrator bulk access.
-
-### Member B — CSV forms and checkbox controls
-
-**Copy new:**
-
-```text
-includes/csv-tools.php
-includes/bulk-tools.php
-assets/js/bulk-select.js
-```
-
-**Update existing:**
-
-```text
-includes/header.php
-includes/dashboard.php
-includes/readings-table.php
-readings.php
-users/admin/admin_panel.php
-users/admin/reports.php
-```
-
-Restore remaining reference includes, CSV controls, checkbox columns, correct
-column spans and bulk script. Reconcile `readings.php` with the final reference
-now that its weather-reading dependency exists. Compare every staged view with
-the approved source. Keep individual reading-row/report-modal Delete buttons
-absent; deletion uses selected checkboxes.
-
-### Member C — CSV and bulk data handling
-
-**Copy new:**
-
-```text
-class/csv.php
-class/bulk.php
-csv.php
-```
-
-Test reading export for both roles; admin reading/location imports and location
-export; malformed files, duplicates and result counts. Test multiple selected
-records and protection of locations linked to readings/reports. Keep the schema.
-
-### Member D — Final documentation and workflow image
-
-**Copy new:**
-
-```text
-README.md
-SIX_WEEK_PLAN.md
-assets/img/website-workflow.png
-```
-
-Copy these from the reference after applying the documentation patch. Update
-names and actual setup/test evidence as needed. README remains the full project
-documentation; this file remains the team plan. The image is documentation and
-is not added to a runtime page.
-
-Follow the README acceptance tests on Herd and XAMPP, including both roles,
-offline tiles, provider failure, report maps, CSV and bulk operations. Record
-actual results/screenshots in the final issue or pull request.
-
-**Integration order:** C's classes/CSV endpoint, A's bulk endpoint, B's controls,
-then D's complete acceptance run and documentation.
-
-**Acceptance:** resolve temporary staging differences, test every route and
-complete the README checklist. Tag `v1.0.0` only after actual acceptance.
-
-## Weekly copy and Git routine
-
-1. Pull the latest accepted official `main` branch.
-2. Create a branch such as `week3/member-d-map`.
-3. Copy each **Copy new** path into the identical destination path. Create parent
-   folders if needed. Never overwrite an existing PHP folder wholesale.
-4. Edit **Update existing** files in place and apply the staging notes.
-5. Integrate dependencies before testing the combined feature.
-6. Inspect files and `git diff`, test, commit assigned files and open a pull request.
-7. Another member reviews/tests; record results and genuine contribution details.
-8. Merge the working milestone and tag `week-1`, `week-2`, etc.
-
-Example, from the official repository on macOS/Linux (replace the reference path):
+### Prepare the new repository
+
+1. One student creates a private or public GitHub repository, chooses `main`
+   as its default branch, and invites the other three students.
+2. Add a short initial README on GitHub (or make an initial commit locally) so
+   the repository has a `main` branch before members clone it.
+3. Keep the existing SmartSlope source project separate. Copy only files
+   assigned for that week's milestone; **never copy the source project's
+   `.git/` directory**.
+4. Before the first push, inspect `config.php`. Commit only safe example/local
+   defaults; do not push a real database password, private keys, production
+   data, database backups, or real resident contact information. Each member
+   configures their own local database credentials privately.
+5. Agree on one integrator, one reviewer per pull request, and the PHP/MySQL
+   setup and `BASE_URL` each member will test. The integrator is not the only
+   person allowed to contribute or review.
+
+### Create one persistent branch per member
+
+Each student clones the new repository and creates their own branch **once**.
+Use the matching name for your role; keep using that branch every week.
 
 ```bash
-mkdir -p class
-cp /absolute/path/to/approved-reference/class/locations.php class/locations.php
+git clone https://github.com/<GROUP>/<NEW-REPOSITORY>.git
+cd <NEW-REPOSITORY>
+git switch main
+git pull --ff-only origin main
+git switch -c member-a
+git push -u origin member-a
+```
+
+Members B, C and D use `member-b`, `member-c` and `member-d` instead. Confirm
+the current branch with `git branch --show-current`. Do not create a new branch
+named for each week; the four personal branches persist through Week 5.
+
+## Weekly responsibilities and exact commits
+
+The paths below are relative to the **new repository root**. Copy or update
+only the assigned paths from the current source project. Some PHP pages combine
+HTML and request handling, so keep each milestone working as it grows: introduce
+dependencies together, enable links only after their destination exists, and
+do not hide missing features with suppressed errors or fake data.
+
+### Week 1 — Repository foundation, accounts and role pages
+
+| Member | Own this work | Stage these paths |
+| --- | --- | --- |
+| A | Login/registration flow, session checks, logout and role routing. | `includes/session.php index.php logout.php dashboard.php` |
+| B | Shared page shell, responsive base styles and local Bootstrap assets. | `includes/header.php includes/footer.php assets/css/style.css assets/css/bootstrap.min.css assets/js/bootstrap.bundle.min.js` |
+| C | Safe database setup, schema, PDO connection and user persistence. Sanitize database settings before staging. | `database/schema.sql class/db.php class/users.php config.php` |
+| D | Resident/admin entry pages and a simple role-appropriate dashboard that does not require later-week features yet. | `users/admin/admin.php users/user/user.php includes/dashboard.php` |
+
+**Exit check:** a new resident can register and log in; the seeded/test admin
+can log in; each role reaches its own protected page; logout works; passwords
+are hashed; and no page links to an unimplemented feature.
+
+**Exact commit messages:** A — `Week 1: Add account and role routing`; B —
+`Week 1: Add shared layout and visual foundation`; C — `Week 1: Add database
+schema and account persistence`; D — `Week 1: Add role dashboards and verify
+login flow`.
+
+### Week 2 — Saved data, locations and offline maps
+
+| Member | Own this work | Stage these paths |
+| --- | --- | --- |
+| A | Admin-only location management and location permissions. | `users/admin/admin_panel.php` |
+| B | Saved-data dashboard and readings list; keep later weather/report controls disabled until their milestone. | `includes/dashboard.php readings.php includes/readings-table.php includes/header.php assets/css/style.css` |
+| C | Location and event persistence; address and Irisan boundary helpers/data. | `class/locations.php class/events.php includes/address.php includes/map-boundary.php assets/map/irisan.geojson` |
+| D | Location map, authenticated address selection, Leaflet assets and all local map tiles. Preserve each `zoom/x/y.png` path. | `includes/location-map.php api/address.php assets/js/location-map.js assets/vendor/leaflet/ assets/map-tiles/` |
+
+**Exit check:** both roles can see the appropriate saved locations/readings;
+admin location changes are protected; the map and boundary load; local tiles
+work offline; selecting a point gives coordinates and a usable address result.
+Test a fresh database and empty tables.
+
+**Exact commit messages:** A — `Week 2: Add protected location management`;
+B — `Week 2: Add saved-data dashboards and readings`; C — `Week 2: Add
+location and event data access`; D — `Week 2: Add offline location maps and
+address selection`.
+
+### Week 3 — Weather requests and rainfall assessment
+
+| Member | Own this work | Stage these paths |
+| --- | --- | --- |
+| A | Authenticated weather/readings API, request validation and explicit error responses. | `api/readings.php` |
+| B | Assessment display, dashboard wiring, navigation and methodology/limitations. | `includes/assessment.php includes/dashboard.php includes/header.php methodology.php assets/css/style.css` |
+| C | Weather data retrieval/storage and rainfall assessment rules. Preserve the prototype's units, thresholds and freshness limits. | `class/RiskAnalyzer.php class/weather_readings.php includes/weather.php` |
+| D | Browser map-to-weather interaction, loading/error states and saved-reading refresh behavior. | `assets/js/weather.js assets/js/location-map.js` |
+
+**Exit check:** a user-triggered dashboard selection/refresh can save and show
+a valid reading and assessment; normal dashboard reloads do not save readings;
+incomplete/stale results are not described as current; provider failure leaves
+previous saved data available and shows a clear error. Keep the rainfall result
+described as an academic prototype, not an official warning.
+
+**Exact commit messages:** A — `Week 3: Add authenticated weather API`; B —
+`Week 3: Add rainfall assessment to dashboards`; C — `Week 3: Add weather
+storage and rainfall rules`; D — `Week 3: Connect map selection to weather
+refresh`.
+
+### Week 4 — Resident reports and administrator review
+
+| Member | Own this work | Stage these paths |
+| --- | --- | --- |
+| A | Admin report-review and reading-edit routes; maintain role and record-type checks. | `users/admin/reports.php users/admin/edit_reading.php` |
+| B | Navigation, dashboard/report tables and responsive presentation for the completed workflows. | `includes/header.php includes/dashboard.php includes/readings-table.php assets/css/style.css` |
+| C | Report persistence, resident ownership, original location/address snapshot and review status updates. | `class/reports.php` |
+| D | Resident report form/history and report-map behavior, including the admin report map. | `users/user/submit_report.php assets/js/report-maps.js` |
+
+**Exit check:** residents submit reports and see only their own history;
+administrators can review the original reported point and update review status;
+residents cannot access admin report/contact details; report status does not
+change rainfall risk. Admin reading edits preserve observation time and saved
+risk behavior.
+
+**Exact commit messages:** A — `Week 4: Add admin report review and reading
+edits`; B — `Week 4: Add report navigation and responsive tables`; C —
+`Week 4: Add report persistence and ownership checks`; D — `Week 4: Add
+resident reports and report maps`.
+
+### Week 5 — CSV, bulk actions and full acceptance
+
+| Member | Own this work | Stage these paths |
+| --- | --- | --- |
+| A | Admin bulk-action endpoint, authorization and record-type protections. | `users/admin/bulk.php` |
+| B | CSV/bulk controls, selection behavior and final page wiring. Do not add individual delete buttons where the UI uses selected-row deletion. | `includes/csv-tools.php includes/bulk-tools.php assets/js/bulk-select.js readings.php users/admin/admin_panel.php users/admin/reports.php` |
+| C | CSV import/export and bulk data operations, with validation and duplicate/linked-location handling. | `class/csv.php class/bulk.php csv.php` |
+| D | Run the full README test guide, record actual results/issues, update the README and this plan if names or evidence changed, and coordinate fixes with their owners. | `README.md SIX_WEEK_PLAN.md` |
+
+**Exit check:** residents can download permitted reading CSVs; admins can use
+the authorized import/export and bulk actions; invalid imports are rejected
+without partial writes; linked locations are protected; all roles, routes,
+maps, weather, reports and responsive pages pass the README test guide. Fix
+blockers before calling the website complete. Record the final tested commit,
+environment and any remaining limitations; do not mark unrun tests as passed.
+
+**Exact commit messages:** A — `Week 5: Add protected admin bulk actions`; B —
+`Week 5: Add CSV and bulk controls to admin pages`; C — `Week 5: Add validated
+CSV and bulk data operations`; D — `Week 5: Complete acceptance testing and
+project documentation`.
+
+## The same branch routine every week
+
+Run these commands from the new repository. Substitute your own persistent
+branch name. Start each week from a clean working tree and bring in the latest
+accepted `main` before editing:
+
+```bash
+git switch member-a
 git status --short
-# Inspect the copied file and test the integrated feature before committing.
-git add class/locations.php
-git diff --cached -- class/locations.php
-git commit -m "Integrate reference location data class"
+git fetch origin
+git merge origin/main
 ```
 
-Finder/Explorer Copy and Paste works too; preserve the exact relative paths.
-Do not paste over teammates' files or local configuration.
+If Git reports a conflict while bringing in `main`, resolve it before starting
+new work (see **If a merge conflicts** below). Copy/edit only your assigned
+files for the current week, run the milestone checks, then stage only those
+files. Use the exact paths and commit message from that week's table:
 
-## Final file check
-
-1. The weekly assignments cover all 37 PHP files, the SQL schema, referenced
-   runtime assets, source maps/vendor notices and documentation.
-2. Compare every root PHP file and each file in `class/`, `includes/`, `api/` and
-   `users/` against the approved reference. Preserve reviewed team changes and
-   local `config.php` settings. Reconcile all temporary Week 1–5 adaptations.
-3. Keep Leaflet attribution/license, GeoJSON and all 110 local PNG tiles. Zoom 16
-   enlarges the available zoom 15 images.
-4. Extra Bootstrap builds, duplicate marker images and unused scripts are not
-   required by the reviewed pages and are not assigned here. This documentation
-   patch does not delete existing assets.
-5. Do not copy development-only tools/docs directories, old generated patches,
-   server logs, private database backups or the reference `.git` into submission.
-6. Run README syntax checks and manual tests. File coverage is not proof that a
-   staged build works; record only tests actually performed.
-7. Each member should explain their code and review another member's work.
-
-## Website workflow
-
-![SmartSlope website workflow](assets/img/website-workflow.png)
-
-1. Open SmartSlope; register if needed, then log in.
-2. The resident or admin dashboard opens according to the account role.
-3. Either role can select a dashboard location, view weather/rainfall screening,
-   save successful readings and download saved readings as CSV.
-4. Residents can choose a report location, add observations and contacts, submit
-   a report and view their own report history.
-5. Administrators review reports/maps and change review status. They can also
-   manage locations/readings, import/export CSV and use checkbox bulk actions.
-6. Return to saved information later or log out when finished.
-
-These are feature choices, not compulsory steps: weather fetching is not needed
-before submitting a report, and administrators can manage records without first
-reviewing a report. Local map tiles/saved data work offline while PHP/MySQL run;
-new weather and detailed addresses need internet. Rainfall screening is an
-academic prototype, not an official warning.
-
-The image was generated with the built-in image-generation tool and checked
-against the reviewed workflows. Prompt brief: a simple green-and-brown flowchart
-with register/login, three lanes (both roles, resident, administrator), the
-submitted-report handoff, saved records/logout, and offline/prototype notes.
-
-## Exact offline tile checklist — Week 3, Member D
-
-Copy `assets/map-tiles/README.md` plus all 110 PNGs below. Preserve zoom/x/y paths.
-
-<details>
-<summary>Show all 110 tile paths</summary>
-
-```text
-assets/map-tiles/12/3419/1858.png
-assets/map-tiles/12/3419/1859.png
-assets/map-tiles/12/3420/1858.png
-assets/map-tiles/12/3420/1859.png
-assets/map-tiles/13/6839/3716.png
-assets/map-tiles/13/6839/3717.png
-assets/map-tiles/13/6839/3718.png
-assets/map-tiles/13/6840/3716.png
-assets/map-tiles/13/6840/3717.png
-assets/map-tiles/13/6840/3718.png
-assets/map-tiles/13/6841/3716.png
-assets/map-tiles/13/6841/3717.png
-assets/map-tiles/13/6841/3718.png
-assets/map-tiles/14/13678/7433.png
-assets/map-tiles/14/13678/7434.png
-assets/map-tiles/14/13678/7435.png
-assets/map-tiles/14/13678/7436.png
-assets/map-tiles/14/13678/7437.png
-assets/map-tiles/14/13679/7433.png
-assets/map-tiles/14/13679/7434.png
-assets/map-tiles/14/13679/7435.png
-assets/map-tiles/14/13679/7436.png
-assets/map-tiles/14/13679/7437.png
-assets/map-tiles/14/13680/7433.png
-assets/map-tiles/14/13680/7434.png
-assets/map-tiles/14/13680/7435.png
-assets/map-tiles/14/13680/7436.png
-assets/map-tiles/14/13680/7437.png
-assets/map-tiles/14/13681/7433.png
-assets/map-tiles/14/13681/7434.png
-assets/map-tiles/14/13681/7435.png
-assets/map-tiles/14/13681/7436.png
-assets/map-tiles/14/13681/7437.png
-assets/map-tiles/14/13682/7433.png
-assets/map-tiles/14/13682/7434.png
-assets/map-tiles/14/13682/7435.png
-assets/map-tiles/14/13682/7436.png
-assets/map-tiles/14/13682/7437.png
-assets/map-tiles/15/27356/14867.png
-assets/map-tiles/15/27356/14868.png
-assets/map-tiles/15/27356/14869.png
-assets/map-tiles/15/27356/14870.png
-assets/map-tiles/15/27356/14871.png
-assets/map-tiles/15/27356/14872.png
-assets/map-tiles/15/27356/14873.png
-assets/map-tiles/15/27356/14874.png
-assets/map-tiles/15/27357/14867.png
-assets/map-tiles/15/27357/14868.png
-assets/map-tiles/15/27357/14869.png
-assets/map-tiles/15/27357/14870.png
-assets/map-tiles/15/27357/14871.png
-assets/map-tiles/15/27357/14872.png
-assets/map-tiles/15/27357/14873.png
-assets/map-tiles/15/27357/14874.png
-assets/map-tiles/15/27358/14867.png
-assets/map-tiles/15/27358/14868.png
-assets/map-tiles/15/27358/14869.png
-assets/map-tiles/15/27358/14870.png
-assets/map-tiles/15/27358/14871.png
-assets/map-tiles/15/27358/14872.png
-assets/map-tiles/15/27358/14873.png
-assets/map-tiles/15/27358/14874.png
-assets/map-tiles/15/27359/14867.png
-assets/map-tiles/15/27359/14868.png
-assets/map-tiles/15/27359/14869.png
-assets/map-tiles/15/27359/14870.png
-assets/map-tiles/15/27359/14871.png
-assets/map-tiles/15/27359/14872.png
-assets/map-tiles/15/27359/14873.png
-assets/map-tiles/15/27359/14874.png
-assets/map-tiles/15/27360/14867.png
-assets/map-tiles/15/27360/14868.png
-assets/map-tiles/15/27360/14869.png
-assets/map-tiles/15/27360/14870.png
-assets/map-tiles/15/27360/14871.png
-assets/map-tiles/15/27360/14872.png
-assets/map-tiles/15/27360/14873.png
-assets/map-tiles/15/27360/14874.png
-assets/map-tiles/15/27361/14867.png
-assets/map-tiles/15/27361/14868.png
-assets/map-tiles/15/27361/14869.png
-assets/map-tiles/15/27361/14870.png
-assets/map-tiles/15/27361/14871.png
-assets/map-tiles/15/27361/14872.png
-assets/map-tiles/15/27361/14873.png
-assets/map-tiles/15/27361/14874.png
-assets/map-tiles/15/27362/14867.png
-assets/map-tiles/15/27362/14868.png
-assets/map-tiles/15/27362/14869.png
-assets/map-tiles/15/27362/14870.png
-assets/map-tiles/15/27362/14871.png
-assets/map-tiles/15/27362/14872.png
-assets/map-tiles/15/27362/14873.png
-assets/map-tiles/15/27362/14874.png
-assets/map-tiles/15/27363/14867.png
-assets/map-tiles/15/27363/14868.png
-assets/map-tiles/15/27363/14869.png
-assets/map-tiles/15/27363/14870.png
-assets/map-tiles/15/27363/14871.png
-assets/map-tiles/15/27363/14872.png
-assets/map-tiles/15/27363/14873.png
-assets/map-tiles/15/27363/14874.png
-assets/map-tiles/15/27364/14867.png
-assets/map-tiles/15/27364/14868.png
-assets/map-tiles/15/27364/14869.png
-assets/map-tiles/15/27364/14870.png
-assets/map-tiles/15/27364/14871.png
-assets/map-tiles/15/27364/14872.png
-assets/map-tiles/15/27364/14873.png
-assets/map-tiles/15/27364/14874.png
+```bash
+git add <only-your-assigned-paths>
+git diff --cached --check
+git diff --cached
+git commit -m "<your exact Week N commit message from the table>"
+git push origin member-a
 ```
 
-</details>
+For example, Member A's first-week stage/commit/push commands are:
+
+```bash
+git add includes/session.php index.php logout.php dashboard.php
+git diff --cached --check
+git diff --cached
+git commit -m "Week 1: Add account and role routing"
+git push origin member-a
+```
+
+The branch routine for B/C/D is identical except for their own branch name,
+assigned paths and exact message. Commit small, reviewable work; do not stage
+another student's files or use `git add .` when private/local files may be
+present. Confirm the branch and staged diff before every commit.
+
+## Integrate each week's work safely
+
+Use **one integrator** so `main` advances in a known order. Members push their
+own branches; the integrator reviews each branch (preferably with a GitHub pull
+request), runs the week's combined exit check, and merges branches **one at a
+time**. Do not let students push independent changes directly to `main`.
+
+For a local command-line merge, the integrator starts from the latest `main`
+and fetches all student branches:
+
+```bash
+git switch main
+git pull --ff-only origin main
+git fetch origin
+git merge --no-ff origin/member-a -m "Merge member-a Week 1 work"
+```
+
+Review the result and run the combined tests before merging the next branch.
+Repeat in order for `member-b`, `member-c` and `member-d`, changing the merge
+message to identify the member and week, for example:
+
+```bash
+git merge --no-ff origin/member-b -m "Merge member-b Week 1 work"
+git merge --no-ff origin/member-c -m "Merge member-c Week 1 work"
+git merge --no-ff origin/member-d -m "Merge member-d Week 1 work"
+git push origin main
+```
+
+For Weeks 2–5, substitute the matching week number in each merge message. The
+integrator must not push `main` until all four accepted changes for that week's
+milestone have been merged and the combined exit check passes. If using GitHub
+pull requests instead of local merges, open one PR per member branch into
+`main`, merge them sequentially after review, and do not also run the local
+merge commands for those same changes.
+
+After the week's `main` is pushed, each member starts the next weekly routine
+by merging `origin/main` into their persistent personal branch. This keeps all
+four branches current without force-pushing or rewriting shared history.
+
+## If a merge conflicts
+
+1. Stop and read the full `git status`. Do not stage or commit unrelated files.
+2. Open each conflicted file, compare both versions, remove only the conflict
+   markers (`<<<<<<<`, `=======`, `>>>>>>>`), and preserve both intended changes.
+   Ask the file owners to agree on behavior when edits overlap.
+3. Stage only the resolved paths and inspect the staged result:
+
+   ```bash
+   git add <resolved-paths>
+   git diff --cached --check
+   git diff --cached
+   ```
+
+4. Complete the merge with `git commit` (or `git merge --continue` if Git asks),
+   then run the milestone tests again. Push only after the combined result
+   works.
+5. If the resolution is unclear, safely cancel the in-progress merge and ask
+   the integrator/owners to coordinate:
+
+   ```bash
+   git merge --abort
+   git status --short
+   ```
+
+Never use `git push --force` to make a merge appear successful. Avoid conflicts
+by assigning one owner per file for each week, merging one member branch at a
+time, and syncing with `origin/main` before the next week's edits.
+
+## Final handoff
+
+- Run the README's full manual test guide against the new repository's `main`,
+  including both roles, fresh and populated data, mobile layout, offline tiles,
+  provider failures, report privacy/maps, CSV validation and bulk actions.
+- Record the final Git commit and real test results. Keep credentials and
+  personal data out of screenshots, commits and the repository.
+- Ask each member to explain their contribution and review one other member's
+  work. Record accurate contribution dates; do not claim copied code as newly
+  invented work.
+- Tag a release only after the integrated website passes acceptance and the
+  group has resolved or documented remaining issues.

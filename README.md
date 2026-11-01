@@ -66,44 +66,54 @@ The offline tile set is already included: 110 PNGs under zoom directories
 open PHP files directly in Finder: PHP and MySQL must be running even offline.
 
 
-## Architecture
+## Three-layer architecture
 
-SmartSlope uses a monolithic PHP web application with three logical layers.
-The layers describe responsibilities, not the number of physical computers.
+The target architecture follows the three-tier model: **Presentation / Client**, **Application / Logic / Middle**, and **Data / Database**. Each tier has a distinct
+responsibility. A tier is a logical part of the application; the project does
+not require three separate computers or servers.
 
-| Logical layer | Responsibility | Project examples |
+| Tier | Responsibility in the target design | SmartSlope responsibilities and examples |
 | --- | --- | --- |
-| Presentation | Forms, tables, navigation, maps and browser interaction | PHP page markup, includes, Bootstrap, Leaflet, JavaScript |
-| Application logic | Authentication, permissions, validation, weather processing, rainfall assessment and report workflows | Page handlers, API handlers, functions and RiskAnalyzer |
-| Data access and storage | Prepared SQL, record retrieval and persistence | PDO classes and the MySQL users, locations and events tables |
+| 1. Presentation / Client | Render the interface, capture user input and display results. It must not connect directly to the database or own authoritative business rules. | Browser HTML/CSS and JavaScript; Bootstrap and Leaflet; forms, tables and maps. PHP-rendered templates in `includes/` and the role pages in `users/` produce the interface. |
+| 2. Application / Logic / Middle | Receive requests, authenticate users, enforce permissions and validation, apply application rules, and coordinate data access. | PHP entry points and JSON endpoints (`index.php`, `dashboard.php`, `api/`); session and request handling; `class/RiskAnalyzer.php`; weather, report and location workflows. |
+| 3. Data / Database | Persist, retrieve and manage records, including database integrity and transactions. The database is accessed through the application tier, never directly from the browser. | PDO connection and SQL operations in `class/db.php` and the data classes; MySQL tables `users`, `locations` and `events` in `database/schema.sql`. |
 
-This is a simple layered design, not strict MVC. Some PHP pages combine request
-handling and HTML, and some classes combine data operations with related rules.
-That is intentional for the project's academic scope.
-
-The browser communicates with PHP over HTTP. PHP communicates with MySQL
-through PDO. The browser never connects directly to MySQL. PHP also contacts
-the weather and address providers when those features are used.
+### Request and data flow
 
 ```mermaid
 flowchart TD
-    B["Browser: forms, tables and Leaflet"] --> P["PHP: request handling and application logic"]
-    P --> D["PDO and MySQL: users, locations, events"]
-    D --> P
-    P --> B
-    P --> E["Online weather and address providers"]
-    E --> P
+    U["Tier 1 — Presentation / Client<br/>Browser: HTML, CSS, JavaScript"] -->|"HTTP form or Fetch request"| A["Tier 2 — Application / Logic<br/>PHP pages, APIs, sessions and rules"]
+    A -->|"PDO queries and transactions"| D["Tier 3 — Data / Database<br/>MySQL: users, locations, events"]
+    D -->|"Records / query results"| A
+    A -->|"HTML or JSON response"| U
+    A <-->|"Weather and address requests, when online"| E["External providers"]
 ```
 
-On Herd or XAMPP, these components can run on the same computer. Calling this
-three logical layers does not mean that three servers have been deployed.
+The current application is a **monolithic PHP deployment organized toward
+three logical layers**, not a fully separated three-server system. Some PHP
+pages both handle requests and render HTML; the `includes/` and `class/`
+directories also contain responsibilities that are not yet strictly isolated.
+The table describes the intended responsibility boundaries and where the
+current implementation mainly performs them; it does not claim that every
+existing file already follows strict separation. Keep browser-to-database
+access prohibited, and avoid moving authoritative permission, validation or
+rainfall rules into browser code as the new repository is built.
+
+On Herd or XAMPP, the browser, PHP application and MySQL database may all run
+on the same computer. The tiers remain logically distinct even when deployed
+together.
+
+**Course reference:** supplied `IMDBSE2 Midterm Materials.pdf`, “Three-Tier
+Architectures” slides, which define Tier 1 as Presentation / Client, Tier 2 as
+Application / Logic / Middle, and Tier 3 as Data / Database.
 
 ## Website workflow
 
 ![SmartSlope website workflow](assets/img/website-workflow.png)
 
 The diagram gives a simple overview. The steps below explain each feature.
-See [the six-week plan](SIX_WEEK_PLAN.md) for exact files assigned to each member.
+See the [five-week team plan](SIX_WEEK_PLAN.md) for member assignments and the
+new-repository workflow.
 
 ### Registration and login
 
@@ -197,7 +207,7 @@ and database workflow tests. Use the Test guide below and record actual results.
 - [Application, API and database reference](#application-reference)
 - [Test guide](#test-guide)
 - [Course alignment and submission checklist](#course-alignment)
-- [Six-week team integration plan](SIX_WEEK_PLAN.md)
+- [Five-week team integration plan](SIX_WEEK_PLAN.md)
 
 
 <a id="application-reference"></a>
