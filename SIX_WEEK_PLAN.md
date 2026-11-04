@@ -41,7 +41,9 @@ Never commit directly to `main`.
 ### Create one persistent branch per member
 
 Each student clones the new repository and creates their own branch **once**.
-Use the matching name for your role; keep using that branch every week.
+Use the matching name for your role; keep using that branch every week. Use
+the same clone for your own work. Do not copy the source project's `.git/`
+folder into the new repository.
 
 ```bash
 git clone https://github.com/<GROUP>/<NEW-REPOSITORY>.git
@@ -52,9 +54,10 @@ git switch -c member-a
 git push -u origin member-a
 ```
 
-Members B, C and D use `member-b`, `member-c` and `member-d` instead. Confirm
-the current branch with `git branch --show-current`. Do not create a new branch
-named for each week; the four personal branches persist through Week 5.
+Repeat the last two commands with `member-b`, `member-c` and `member-d` for the
+other members. Confirm your branch with `git branch --show-current`. Do not
+create a new branch named for each week; the four personal branches persist
+through Week 5.
 
 ## Weekly responsibilities and exact commits
 
@@ -162,85 +165,130 @@ environment and any remaining limitations; do not mark unrun tests as passed.
 CSV and bulk data operations`; D — `Week 5: Complete acceptance testing and
 project documentation`.
 
-## The same branch routine every week
+## Exact copy, commit and merge steps
 
-Run these commands from the new repository. Substitute your own persistent
-branch name. Start each week from a clean working tree and bring in the latest
-accepted `main` before editing:
+Follow the members in the order shown for each week. Do not work on the four
+branches in parallel: each member must start from the `main` that includes the
+previous member's merged work. The member should copy only the paths assigned
+to them in that week's table above. Copy from the existing SmartSlope source
+project into the new repository, keeping every path the same. For a folder
+assignment, copy the whole folder and keep its subfolder structure.
 
-```bash
-git switch member-a
-git status --short
-git fetch origin
-git merge origin/main
-```
+### Each member's steps
 
-If Git reports a conflict while bringing in `main`, resolve it before starting
-new work (see **If a merge conflicts** below). Copy/edit only your assigned
-files for the current week, run the milestone checks, then stage only those
-files. Use the exact paths and commit message from that week's table:
+For every weekly assignment, the member does these steps in order:
 
-```bash
-git add <only-your-assigned-paths>
-git diff --cached --check
-git diff --cached
-git commit -m "<your exact Week N commit message from the table>"
-git push origin member-a
-```
+1. Open a terminal in your new repository. Substitute your own branch name in
+   the commands below. Check that you have no uncommitted changes:
 
-For example, Member A's first-week stage/commit/push commands are:
+   ```bash
+   git switch member-a
+   git status --short
+   git fetch origin
+   git merge origin/main
+   git branch --show-current
+   ```
 
-```bash
-git add includes/session.php index.php logout.php dashboard.php
-git diff --cached --check
-git diff --cached
-git commit -m "Week 1: Add account and role routing"
-git push origin member-a
-```
+   Use `member-b`, `member-c` or `member-d` instead of `member-a` as
+   appropriate. If the status shows old work, commit or otherwise safely
+   resolve it before continuing. If bringing in `main` causes conflicts, use
+   **If a merge conflicts** below.
+2. In Finder/File Explorer, open the existing source project and the new
+   repository. Copy only your assigned files/folders from the weekly table
+   into the same relative paths in the new repository. Create any destination
+   folders that do not exist. Replace a destination file if it already exists.
+   Never copy `.git/`. Before copying `config.php`, remove real passwords or
+   other private values; use only safe example/local defaults.
+3. From the terminal in the new repository, stage exactly your assigned paths.
+   Do not use `git add .`:
 
-The branch routine for B/C/D is identical except for their own branch name,
-assigned paths and exact message. Commit small, reviewable work; do not stage
-another student's files or use `git add .` when private/local files may be
-present. Confirm the branch and staged diff before every commit.
+   ```bash
+   git add <your exact paths from this week's table>
+   git diff --cached --check
+   git diff --cached
+   ```
 
-## Integrate each week's work safely
+   Confirm that the staged changes contain only your work and no secrets.
+   Then use the exact commit message from the weekly table:
 
-Use **one integrator** so `main` advances in a known order. Members push their
-own branches; the integrator reviews each branch (preferably with a GitHub pull
-request), runs the week's combined exit check, and merges branches **one at a
-time**. Do not let students push independent changes directly to `main`.
+   ```bash
+   git commit -m "<your exact commit message from this week's table>"
+   git push origin member-a
+   ```
 
-For a local command-line merge, the integrator starts from the latest `main`
-and fetches all student branches:
+   Replace `member-a` with your own branch name.
+4. Tell the integrator your branch is ready. Do not merge your branch into
+   `main` yourself.
+5. Wait until the integrator merges your branch and pushes `main`. The next
+   member in that week's order then follows these same steps and first merges
+   the updated `origin/main` into their own branch.
+
+### Integrator's steps after each member
+
+Use one integrator for the whole project. After each member pushes, the
+integrator reviews that member's branch and merges it to `main` before the next
+member starts. In the integrator's clone, run:
 
 ```bash
 git switch main
 git pull --ff-only origin main
 git fetch origin
 git merge --no-ff origin/member-a -m "Merge member-a Week 1 work"
-```
-
-Review the result and run the combined tests before merging the next branch.
-Repeat in order for `member-b`, `member-c` and `member-d`, changing the merge
-message to identify the member and week, for example:
-
-```bash
-git merge --no-ff origin/member-b -m "Merge member-b Week 1 work"
-git merge --no-ff origin/member-c -m "Merge member-c Week 1 work"
-git merge --no-ff origin/member-d -m "Merge member-d Week 1 work"
 git push origin main
 ```
 
-For Weeks 2–5, substitute the matching week number in each merge message. The
-integrator must not push `main` until all four accepted changes for that week's
-milestone have been merged and the combined exit check passes. If using GitHub
-pull requests instead of local merges, open one PR per member branch into
-`main`, merge them sequentially after review, and do not also run the local
-merge commands for those same changes.
+Replace the member branch and week number with the current assignment. Review
+the merge before pushing. The `main` branch is built up one member at a time;
+do not deploy or call a week complete until all four members' work for that
+week is merged and the week's exit check above passes. If a merge conflicts,
+resolve it as described below, then review and test before pushing.
 
-After the week's `main` is pushed, each member starts the next weekly routine
-by merging `origin/main` into their persistent personal branch. This keeps all
-four branches current without force-pushing or rewriting shared history.
+### Required order for every week
+
+For each numbered week below, do Member A, merge and push A; then Member B,
+merge and push B; then Member C, merge and push C; then Member D, merge and
+push D. The branch and merge-message names for each step are:
+
+| Week | First: member branch → merge message | Second: member branch → merge message | Third: member branch → merge message | Fourth: member branch → merge message |
+| --- | --- | --- | --- | --- |
+| 1 | `member-a` → `Merge member-a Week 1 work` | `member-b` → `Merge member-b Week 1 work` | `member-c` → `Merge member-c Week 1 work` | `member-d` → `Merge member-d Week 1 work` |
+| 2 | `member-a` → `Merge member-a Week 2 work` | `member-b` → `Merge member-b Week 2 work` | `member-c` → `Merge member-c Week 2 work` | `member-d` → `Merge member-d Week 2 work` |
+| 3 | `member-a` → `Merge member-a Week 3 work` | `member-b` → `Merge member-b Week 3 work` | `member-c` → `Merge member-c Week 3 work` | `member-d` → `Merge member-d Week 3 work` |
+| 4 | `member-a` → `Merge member-a Week 4 work` | `member-b` → `Merge member-b Week 4 work` | `member-c` → `Merge member-c Week 4 work` | `member-d` → `Merge member-d Week 4 work` |
+| 5 | `member-a` → `Merge member-a Week 5 work` | `member-b` → `Merge member-b Week 5 work` | `member-c` → `Merge member-c Week 5 work` | `member-d` → `Merge member-d Week 5 work` |
+
+### Week 1 example: exact order and files
+
+Use the common member and integrator steps above. Follow this list exactly;
+each integrator merge and push happens before the next member begins:
+
+1. **Member A:** copy `includes/session.php`, `index.php`, `logout.php` and
+   `dashboard.php` from the source project into the same paths in the new
+   repository. Stage those paths, commit `Week 1: Add account and role
+   routing`, and push `member-a`. The integrator merges `origin/member-a` with
+   message `Merge member-a Week 1 work` and pushes `main`.
+2. **Member B:** first merge the updated `origin/main` into `member-b`. Copy
+   `includes/header.php`, `includes/footer.php`, `assets/css/style.css`,
+   `assets/css/bootstrap.min.css` and `assets/js/bootstrap.bundle.min.js`.
+   Stage those paths, commit `Week 1: Add shared layout and visual
+   foundation`, and push `member-b`. The integrator merges `origin/member-b`
+   with message `Merge member-b Week 1 work` and pushes `main`.
+3. **Member C:** first merge the updated `origin/main` into `member-c`. Copy
+   `database/schema.sql`, `class/db.php`, `class/users.php` and the sanitized
+   `config.php`. Stage those paths, commit `Week 1: Add database schema and
+   account persistence`, and push `member-c`. The integrator merges
+   `origin/member-c` with message `Merge member-c Week 1 work` and pushes
+   `main`.
+4. **Member D:** first merge the updated `origin/main` into `member-d`. Copy
+   `users/admin/admin.php`, `users/user/user.php` and `includes/dashboard.php`.
+   Stage those paths, commit `Week 1: Add role dashboards and verify login
+   flow`, and push `member-d`. The integrator merges `origin/member-d` with
+   message `Merge member-d Week 1 work` and pushes `main`.
+
+For each step, stage only the named files, inspect the staged diff, and follow
+the commands in **Each member's steps** and **Integrator's steps after each
+member**. Weeks 2–5 use the same sequence and steps, with the exact paths and
+commit messages in that week's table above.
 
 ## If a merge conflicts
 
